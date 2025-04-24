@@ -60,7 +60,7 @@ export default function Sidebar({ open, currentPath }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "bg-white shadow-lg flex flex-col transition-all duration-300 fixed h-full z-10",
+        "bg-[#0063A3] shadow-lg flex flex-col transition-all duration-300 fixed h-full z-10",
         open ? (isMobile ? "w-16" : "w-56") : "w-0"
       )}
     >
@@ -69,15 +69,15 @@ export default function Sidebar({ open, currentPath }: SidebarProps) {
           {navItems.map((item) => (
             <li key={item.href} className="mb-1">
               <Link href={item.href}>
-                <a
+                <div
                   className={cn(
-                    "flex items-center px-4 py-3 text-[#0063A3] hover:bg-[#EBF4FF]",
-                    currentPath === item.href && "bg-[#EBF4FF] font-medium"
+                    "flex items-center px-4 py-3 text-white hover:bg-[#0076c6] cursor-pointer",
+                    currentPath === item.href && "bg-[#0076c6] font-medium"
                   )}
                 >
                   {item.icon}
                   {(!isMobile || !open) && <span className="ml-2 hidden md:block">{item.title}</span>}
-                </a>
+                </div>
               </Link>
             </li>
           ))}
@@ -86,7 +86,7 @@ export default function Sidebar({ open, currentPath }: SidebarProps) {
       
       {!isMobile && open && (
         <div className="p-4 mt-auto hidden md:block">
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-white opacity-70">
             <p>MSP Gestion v1.0</p>
             <p>© 2023 Tous droits réservés</p>
           </div>
