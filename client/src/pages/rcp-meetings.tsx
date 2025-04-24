@@ -249,6 +249,28 @@ export default function RcpMeetings() {
 
   // Gestion des présences/absences
   const handleAttendanceChange = (attendanceId: number | null, associateId: number, isPresent: boolean) => {
+    // Vérification de sécurité: s'assurer que selectedMeetingId existe et est présent dans meetings
+    if (!selectedMeetingId) {
+      toast({
+        title: 'Erreur',
+        description: 'Veuillez sélectionner une réunion valide',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Vérifier que la réunion existe encore
+    const meetingExists = meetings.some((m: any) => m.id === selectedMeetingId);
+    if (!meetingExists) {
+      toast({
+        title: 'Erreur',
+        description: 'Cette réunion n\'existe plus. Veuillez sélectionner une autre réunion.',
+        variant: 'destructive',
+      });
+      setSelectedMeetingId(null);
+      return;
+    }
+    
     if (attendanceId) {
       // Mise à jour d'une présence existante
       updateAttendanceMutation.mutate({ id: attendanceId, attended: isPresent });

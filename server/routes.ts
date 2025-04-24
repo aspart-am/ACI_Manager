@@ -290,18 +290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/rcp-attendances", async (req, res) => {
-    try {
-      const validatedData = insertRcpAttendanceSchema.parse(req.body);
-      const attendance = await storage.createRcpAttendance(validatedData);
-      res.status(201).json(attendance);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid RCP attendance data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create RCP attendance" });
-    }
-  });
+  // Cette route post "/api/rcp-attendances" a été déplacée plus bas dans le fichier
   
   app.patch("/api/rcp-attendances/:id", async (req, res) => {
     try {
@@ -556,12 +545,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/rcp-attendances", async (req, res) => {
     try {
       const validatedData = insertRcpAttendanceSchema.parse(req.body);
+      
+      // Vérifier d'abord si la réunion RCP existe
+      const rcpMeeting = await storage.getRcpMeeting(validatedData.rcpId);
+      if (!rcpMeeting) {
+        return res.status(404).json({ message: "RCP meeting not found" });
+      }
+      
+      // Vérifier si une entrée existe déjà pour cette combinaison réunion/associé
+      const existingAttendances = await storage.getRcpAttendances(validatedData.rcpId);
+      const existingAttendance = existingAttendances.find(
+        (a) => a.associateId === validatedData.associateId
+      );
+      
+      if (existingAttendance) {
+        // Si elle existe déjà, mettre à jour au lieu de créer
+        const updatedAttendance = await storage.updateRcpAttendance(
+          existingAttendance.id, 
+          validatedData.attended || false
+        );
+        return res.status(200).json(updatedAttendance);
+      }
+      
+      // Sinon créer une nouvelle entrée
       const attendance = await storage.createRcpAttendance(validatedData);
       res.status(201).json(attendance);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid RCP attendance data", errors: error.errors });
       }
+      console.error("Error creating RCP attendance:", error);
       res.status(500).json({ message: "Failed to create RCP attendance" });
     }
   });
