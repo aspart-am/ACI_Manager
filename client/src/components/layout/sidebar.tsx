@@ -9,6 +9,7 @@ import {
   Scale,
   Settings,
   Calendar,
+  Briefcase,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -50,6 +51,11 @@ export default function Sidebar({ open, currentPath }: SidebarProps) {
       title: "Réunions RCP",
       href: "/rcp-meetings",
       icon: <Calendar className="w-5 h-5" />,
+    },
+    {
+      title: "Projets & Missions",
+      href: "/projects",
+      icon: <Briefcase className="w-5 h-5" />,
     },
     {
       title: "Répartition",
