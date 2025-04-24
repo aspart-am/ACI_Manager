@@ -32,6 +32,7 @@ interface Project {
   endDate: string | null;
   status: string;
   weight: string;
+  assignmentCount?: number;
 }
 
 interface AccessoryMission {
@@ -58,12 +59,19 @@ interface RcpMeeting {
   title: string;
   description: string | null;
   date: string;
+  duration?: string;
+  attendanceCount?: number;
 }
 
 interface DistributionResult {
   totalAciRevenue: number;
   totalRevenue: number;
   associateShares: AssociateShare[];
+  // Nouvelles propriétés pour afficher des détails dans l'interface
+  rcpMeetings?: RcpMeeting[];
+  projects?: Project[];
+  rcpAttendance?: Record<number, { minutes: number; percentage: number }>;
+  projectContributions?: Record<number, { projectCount: number; percentage: number }>;
 }
 
 interface AssociateShare {
@@ -356,11 +364,95 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     // Trier par part totale décroissante
     associateShares.sort((a, b) => b.totalShare - a.totalShare);
     
-    return {
+    // Calcul des informations de RCP pour l'interface UI
+    const rcpAttendanceInfo: Record<number, { minutes: number; percentage: number }> = {};
+    
+    // Récupérer les données des présences aux RCP
+    const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance WHERE attended = true");
+    const rcpAttendances: RcpAttendance[] = rcpAttendancesResult.rows;
+    
+    // Mettre à jour les réunions RCP avec le nombre de participants
+    for (const meeting of rcpMeetings) {
+      const attendances = rcpAttendances.filter(a => a.rcpId === meeting.id);
+      meeting.attendanceCount = attendances.length;
+    }
+    
+    // Calculer les temps de présence par associé
+    const attendanceByAssociate: Record<number, number> = {};
+    for (const attendance of rcpAttendances) {
+      const meeting = rcpMeetings.find(m => m.id === attendance.rcpId);
+      if (meeting) {
+        const meetingDuration = meeting.duration ? parseInt(meeting.duration.toString()) : 60;
+        attendanceByAssociate[attendance.associateId] = (attendanceByAssociate[attendance.associateId] || 0) + meetingDuration;
+      }
+    }
+    
+    // Calculer le temps total et les pourcentages
+    const totalAttendanceTime = Object.values(attendanceByAssociate).reduce((sum: number, time: number) => sum + time, 0) || 1;
+    for (const associateId in attendanceByAssociate) {
+      const minutes = attendanceByAssociate[parseInt(associateId)];
+      const percentage = minutes / totalAttendanceTime;
+      rcpAttendanceInfo[parseInt(associateId)] = { minutes, percentage };
+    }
+    
+    // Préparer les informations sur les projets pour l'interface
+    const projectContributionsInfo: Record<number, { projectCount: number; percentage: number }> = {};
+    
+    // Récupérer toutes les affectations de projet
+    const projectAssignmentsResult = await query("SELECT * FROM project_assignments");
+    const projectAssignments: ProjectAssignment[] = projectAssignmentsResult.rows;
+    
+    // Mettre à jour les projets avec le nombre de contributeurs
+    for (const project of projects) {
+      const assignments = projectAssignments.filter(a => a.projectId === project.id);
+      project.assignmentCount = assignments.length;
+    }
+    
+    // Calculer les contributions par associé
+    const contribuByAssociate: Record<number, number> = {};
+    let totalContrib = 0;
+    
+    for (const assignment of projectAssignments) {
+      const project = projects.find(p => p.id === assignment.projectId);
+      if (project) {
+        const projectWeight = parseFloat(project.weight || '1.0');
+        const assignmentContribution = parseFloat(assignment.contribution || '1.0');
+        const weightedContrib = projectWeight * assignmentContribution;
+        
+        contribuByAssociate[assignment.associateId] = (contribuByAssociate[assignment.associateId] || 0) + weightedContrib;
+        totalContrib += weightedContrib;
+      }
+    }
+    
+    // Compter les projets par associé
+    const projectsPerAssociate: Record<number, number> = {};
+    for (const assignment of projectAssignments) {
+      projectsPerAssociate[assignment.associateId] = (projectsPerAssociate[assignment.associateId] || 0) + 1;
+    }
+    
+    // Calculer les pourcentages si on a des contributions
+    if (totalContrib > 0) {
+      for (const associateId in contribuByAssociate) {
+        const percentage = contribuByAssociate[parseInt(associateId)] / totalContrib;
+        projectContributionsInfo[parseInt(associateId)] = {
+          projectCount: projectsPerAssociate[parseInt(associateId)] || 0,
+          percentage
+        };
+      }
+    }
+    
+    // Ajouter des informations pour l'interface
+    const result: DistributionResult = {
       totalAciRevenue,
       totalRevenue,
-      associateShares
+      associateShares,
+      rcpMeetings,
+      projects,
+      rcpAttendance: rcpAttendanceInfo,
+      projectContributions: projectContributionsInfo
     };
+    
+    return result;
   } catch (error) {
     console.error('Erreur lors du calcul de la distribution:', error);
     throw error;

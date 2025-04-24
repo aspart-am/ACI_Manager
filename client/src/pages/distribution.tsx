@@ -256,26 +256,204 @@ export default function Distribution() {
             
             <TabsContent value="rcp">
               <p className="text-sm text-gray-600 mb-4">
-                Cette section présenterait le détail des présences aux RCP pour chaque associé et leur impact
-                sur la répartition des rémunérations.
+                Cette section présente le détail des présences aux RCP pour chaque associé et leur impact
+                sur la répartition des rémunérations (25% du montant total à distribuer).
               </p>
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                <p className="text-sm text-yellow-700">
-                  Fonctionnalité en cours de développement. Bientôt disponible.
-                </p>
-              </div>
+              
+              {isLoading ? (
+                <div className="flex items-center justify-center h-[200px]">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="flex flex-col">
+                          <h4 className="text-sm font-medium mb-2">Réunions RCP récentes</h4>
+                          {distributionData?.rcpMeetings && distributionData.rcpMeetings.length > 0 ? (
+                            <div className="border rounded-md overflow-hidden">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titre</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durée</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participants</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {distributionData.rcpMeetings.map((meeting: any) => (
+                                    <tr key={meeting.id}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(meeting.date).toLocaleDateString('fr-FR')}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{meeting.title}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{meeting.duration || 60} min</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {meeting.attendanceCount || 0} participants
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500 italic">
+                              Aucune réunion RCP enregistrée. Pour ajouter des réunions, utilisez l'onglet "Réunions RCP".
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="flex flex-col">
+                          <h4 className="text-sm font-medium mb-2">Temps de présence par associé</h4>
+                          {distributionData?.rcpAttendance && Object.keys(distributionData.rcpAttendance).length > 0 ? (
+                            <div className="border rounded-md overflow-hidden">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Associé</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Présence (minutes)</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Part RCP (%)</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {distributionData.distribution.map((item: any) => (
+                                    <tr key={item.id}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {distributionData.rcpAttendance[item.id]?.minutes || 0} min
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {distributionData.rcpAttendance[item.id]?.percentage 
+                                          ? (distributionData.rcpAttendance[item.id].percentage * 100).toFixed(1) + '%' 
+                                          : '0%'}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {formatCurrency(item.rcpShare || 0)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500 italic">
+                              Aucune présence RCP enregistrée. Pour ajouter des présences, utilisez l'onglet "Réunions RCP".
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="projects">
               <p className="text-sm text-gray-600 mb-4">
-                Cette section présenterait le détail des contributions aux projets pour chaque associé et leur impact
-                sur la répartition des rémunérations.
+                Cette section présente le détail des contributions aux projets pour chaque associé et leur impact
+                sur la répartition des rémunérations (25% du montant total à distribuer).
               </p>
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                <p className="text-sm text-yellow-700">
-                  Fonctionnalité en cours de développement. Bientôt disponible.
-                </p>
-              </div>
+              
+              {isLoading ? (
+                <div className="flex items-center justify-center h-[200px]">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="flex flex-col">
+                          <h4 className="text-sm font-medium mb-2">Projets actifs</h4>
+                          {distributionData?.projects && distributionData.projects.length > 0 ? (
+                            <div className="border rounded-md overflow-hidden">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Projet</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Poids</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contributeurs</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {distributionData.projects.map((project: any) => (
+                                    <tr key={project.id}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.title}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.status}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{project.weight}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {project.assignmentCount || 0} associés
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500 italic">
+                              Aucun projet actif. Pour ajouter des projets, utilisez l'onglet "Projets".
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="flex flex-col">
+                          <h4 className="text-sm font-medium mb-2">Contributions par associé</h4>
+                          {distributionData?.projectContributions && Object.keys(distributionData.projectContributions).length > 0 ? (
+                            <div className="border rounded-md overflow-hidden">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Associé</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Projets</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contribution (%)</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {distributionData.distribution.map((item: any) => (
+                                    <tr key={item.id}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {distributionData.projectContributions[item.id]?.projectCount || 0}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {distributionData.projectContributions[item.id]?.percentage 
+                                          ? (distributionData.projectContributions[item.id].percentage * 100).toFixed(1) + '%' 
+                                          : '0%'}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {formatCurrency(item.projectShare || 0)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500 italic">
+                              Aucune contribution aux projets enregistrée. Pour ajouter des contributions, utilisez l'onglet "Projets".
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
