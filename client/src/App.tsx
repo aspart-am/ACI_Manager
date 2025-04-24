@@ -20,6 +20,7 @@ function Router() {
       <Route path="/revenue-simulation" component={RevenueSimulation} />
       <Route path="/associates" component={Associates} />
       <Route path="/expenses" component={Expenses} />
+      <Route path="/rcp-meetings" component={RcpMeetings} />
       <Route path="/distribution" component={Distribution} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />

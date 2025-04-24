@@ -8,6 +8,7 @@ import {
   FileText,
   Scale,
   Settings,
+  Calendar,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -44,6 +45,11 @@ export default function Sidebar({ open, currentPath }: SidebarProps) {
       title: "Charges",
       href: "/expenses",
       icon: <FileText className="w-5 h-5" />,
+    },
+    {
+      title: "Réunions RCP",
+      href: "/rcp-meetings",
+      icon: <Calendar className="w-5 h-5" />,
     },
     {
       title: "Répartition",

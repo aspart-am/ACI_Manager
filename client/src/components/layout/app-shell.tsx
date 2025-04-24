@@ -24,6 +24,8 @@ export default function AppShell({ children }: AppShellProps) {
         return "Gestion des associés";
       case "/expenses":
         return "Charges";
+      case "/rcp-meetings":
+        return "Réunions de concertation pluriprofessionnelle";
       case "/distribution":
         return "Répartition des rémunérations";
       case "/settings":
