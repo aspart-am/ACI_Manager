@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, date, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, date, numeric, timestamp } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
