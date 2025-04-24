@@ -62,7 +62,18 @@ export default function Distribution() {
   // Calculate net distribution amount
   const netDistribution = totalAci - totalExpenses;
 
-  // Prepare data for pie chart - la propriété renvoyée par l'API est 'associateShares', pas 'distribution'
+  // Adapter les données pour le composant DistributionTable
+  const formattedDistribution = distributionData?.associateShares?.map((item: any) => ({
+    associateId: item.associateId,
+    name: item.associateName,
+    profession: item.profession,
+    isManager: item.isManager || false,
+    weight: 1, // Valeur par défaut si nécessaire
+    sharePercentage: item.percentageShare * 100,
+    amount: item.totalShare
+  })) || [];
+
+  // Prepare data for pie chart
   const pieChartData = distributionData?.associateShares?.map((item: any) => ({
     name: item.associateName,
     value: parseFloat(item.totalShare),
@@ -146,7 +157,7 @@ export default function Distribution() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               ) : (
-                <DistributionTable distribution={distributionData?.associateShares || []} />
+                <DistributionTable distribution={formattedDistribution} />
               )}
             </div>
           </CardContent>
@@ -323,14 +334,14 @@ export default function Distribution() {
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                  {distributionData.associateShares.map((item: any) => (
+                                  {distributionData?.associateShares?.map((item: any) => (
                                     <tr key={item.associateId}>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.associateName}</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {distributionData.rcpAttendance[item.associateId]?.minutes || 0} min
+                                        {distributionData?.rcpAttendance && distributionData.rcpAttendance[item.associateId]?.minutes || 0} min
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {distributionData.rcpAttendance[item.associateId]?.percentage 
+                                        {distributionData?.rcpAttendance && distributionData.rcpAttendance[item.associateId]?.percentage 
                                           ? (distributionData.rcpAttendance[item.associateId].percentage * 100).toFixed(1) + '%' 
                                           : '0%'}
                                       </td>
