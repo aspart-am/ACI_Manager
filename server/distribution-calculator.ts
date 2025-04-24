@@ -34,6 +34,25 @@ interface Project {
   weight: string;
 }
 
+interface AccessoryMission {
+  id: number;
+  title: string;
+  description: string | null;
+  startDate: string;
+  endDate: string | null;
+  status: string;
+  budget: string;
+  type: string;
+  year: number;
+}
+
+interface MissionAssignment {
+  id: number;
+  missionId: number;
+  associateId: number;
+  contributionPercentage: string;
+}
+
 interface RcpMeeting {
   id: number;
   title: string;
@@ -54,7 +73,7 @@ interface AssociateShare {
   isManager: boolean;
   baseShare: number;           // Part fixe (50% des revenus)
   rcpShare: number;            // Part liée aux présences RCP (25% des revenus)
-  projectShare: number;        // Part liée aux missions (25% des revenus)
+  projectShare: number;        // Part liée aux missions et projets (25% des revenus)
   totalShare: number;          // Somme des trois parts
   percentageShare: number;     // Pourcentage du total
 }
@@ -166,32 +185,72 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     let projectShares: Record<number, number> = {};
     const totalProjectShare = netAmount * projectSharePercentage;
     
-    // 9.1 Récupérer tous les projets
+    // 9.1 Récupérer l'année courante pour les missions accessoires
+    const currentYear = new Date().getFullYear();
+    
+    // 9.2 Récupérer tous les projets actifs
     const projectsResult = await query("SELECT * FROM projects WHERE status = 'active'");
     const projects: Project[] = projectsResult.rows;
     
-    if (projects.length > 0) {
-      // 9.2 Récupérer toutes les affectations de projet
-      const projectAssignmentsResult = await query("SELECT * FROM project_assignments");
-      const projectAssignments: ProjectAssignment[] = projectAssignmentsResult.rows;
-      
-      // 9.3 Calculer la contribution totale pondérée
+    // 9.3 Récupérer toutes les missions accessoires actives pour l'année courante
+    const accessoryMissionsResult = await query("SELECT * FROM accessory_missions WHERE status = 'active' AND year = $1", [currentYear]);
+    const accessoryMissions: AccessoryMission[] = accessoryMissionsResult.rows;
+    
+    // 9.4 Vérifier s'il y a des projets ou des missions accessoires
+    const hasProjectsOrMissions = projects.length > 0 || accessoryMissions.length > 0;
+    
+    if (hasProjectsOrMissions) {
+      // 9.5 Initialiser la contribution totale et les contributions par associé
       let totalContribution = 0;
       const contributionByAssociate: Record<number, number> = {};
       
-      for (const assignment of projectAssignments) {
-        const project = projects.find(p => p.id === assignment.projectId);
-        if (project) {
-          const projectWeight = parseFloat(project.weight || '1.0');
-          const assignmentContribution = parseFloat(assignment.contribution || '1.0');
-          const weightedContribution = projectWeight * assignmentContribution;
-          
-          contributionByAssociate[assignment.associateId] = (contributionByAssociate[assignment.associateId] || 0) + weightedContribution;
-          totalContribution += weightedContribution;
+      // 9.6 Traiter les projets réguliers
+      if (projects.length > 0) {
+        // Récupérer toutes les affectations de projet
+        const projectAssignmentsResult = await query("SELECT * FROM project_assignments");
+        const projectAssignments: ProjectAssignment[] = projectAssignmentsResult.rows;
+        
+        // Calculer la contribution des projets
+        for (const assignment of projectAssignments) {
+          const project = projects.find(p => p.id === assignment.projectId);
+          if (project) {
+            const projectWeight = parseFloat(project.weight || '1.0');
+            const assignmentContribution = parseFloat(assignment.contribution || '1.0');
+            const weightedContribution = projectWeight * assignmentContribution;
+            
+            contributionByAssociate[assignment.associateId] = (contributionByAssociate[assignment.associateId] || 0) + weightedContribution;
+            totalContribution += weightedContribution;
+          }
         }
       }
       
-      // 9.4 Calculer la part projet pour chaque associé
+      // 9.7 Traiter les missions accessoires
+      if (accessoryMissions.length > 0) {
+        // Récupérer toutes les affectations de missions accessoires
+        const missionAssignmentsResult = await query("SELECT * FROM mission_assignments");
+        const missionAssignments: MissionAssignment[] = missionAssignmentsResult.rows;
+        
+        // Calculer la contribution des missions accessoires
+        for (const assignment of missionAssignments) {
+          const mission = accessoryMissions.find(m => m.id === assignment.missionId);
+          if (mission) {
+            // Utiliser le budget comme poids supplémentaire pour les missions importantes
+            const missionBudget = parseFloat(mission.budget || '0');
+            // La contribution en pourcentage est déjà stockée (normalement entre 0 et 100)
+            const assignmentContribution = parseFloat(assignment.contributionPercentage || '100') / 100;
+            
+            // Pondérer la contribution par le budget pour donner plus de poids aux missions importantes
+            // Pour éviter des divisions par zéro, utiliser au moins 1.0 comme budget minimum
+            const effectiveBudget = Math.max(missionBudget, 1.0);
+            const weightedContribution = effectiveBudget * assignmentContribution;
+            
+            contributionByAssociate[assignment.associateId] = (contributionByAssociate[assignment.associateId] || 0) + weightedContribution;
+            totalContribution += weightedContribution;
+          }
+        }
+      }
+      
+      // 9.8 Calculer la part projet/mission pour chaque associé
       if (totalContribution > 0) {
         for (const associateId in contributionByAssociate) {
           projectShares[parseInt(associateId)] = (contributionByAssociate[parseInt(associateId)] / totalContribution) * totalProjectShare;
@@ -203,7 +262,7 @@ export async function calculateDistribution(): Promise<DistributionResult> {
         }
       }
     } else {
-      // Si pas de projets, distribuer également
+      // Si pas de projets ni de missions, distribuer également
       for (const associate of associates) {
         projectShares[associate.id] = totalProjectShare / associates.length;
       }

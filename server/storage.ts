@@ -207,7 +207,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAssociate(id: number): Promise<boolean> {
     const result = await query('DELETE FROM associates WHERE id = $1 RETURNING id', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Expense methods
@@ -288,7 +288,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteExpense(id: number): Promise<boolean> {
     const result = await query('DELETE FROM expenses WHERE id = $1 RETURNING id', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Revenue methods
