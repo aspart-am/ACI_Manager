@@ -78,7 +78,17 @@ export default function RcpMeetings() {
 
   // Mutation pour créer une nouvelle réunion
   const createMutation = useMutation({
-    mutationFn: (values: FormValues) => apiRequest('/api/rcp-meetings', 'POST', values),
+    mutationFn: (values: FormValues) => {
+      // Vérification que la durée est bien un nombre
+      const durationValue = typeof values.duration === 'string' 
+        ? parseInt(values.duration, 10) 
+        : values.duration;
+        
+      return apiRequest('/api/rcp-meetings', 'POST', {
+        ...values,
+        duration: durationValue
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
       toast({
