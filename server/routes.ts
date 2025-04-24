@@ -646,6 +646,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Route de débogage pour les présences RCP
+  app.get("/api/debug/rcp-data", async (req, res) => {
+    try {
+      const { query } = await import('./db');
+      
+      // Récupérer toutes les réunions RCP
+      const rcpMeetingsResult = await query("SELECT * FROM rcp_meetings");
+      const rcpMeetings = rcpMeetingsResult.rows;
+      
+      // Récupérer toutes les présences (sans filtre)
+      const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance");
+      const rcpAttendances = rcpAttendancesResult.rows;
+      
+      // Récupérer les présences avec attended = true
+      const rcpAttendancesTrueResult = await query("SELECT * FROM rcp_attendance WHERE attended = true");
+      const rcpAttendancesTrue = rcpAttendancesTrueResult.rows;
+      
+      // Résumé des présences par réunion
+      const attendanceByMeeting = {};
+      rcpMeetings.forEach(meeting => {
+        const meetingAttendances = rcpAttendances.filter(a => a.rcp_id === meeting.id);
+        const presentAttendances = meetingAttendances.filter(a => a.attended === true);
+        
+        attendanceByMeeting[meeting.id] = {
+          meetingTitle: meeting.title,
+          totalAttendances: meetingAttendances.length,
+          presentAttendances: presentAttendances.length,
+          attendancesList: meetingAttendances
+        };
+      });
+      
+      res.json({
+        totalMeetings: rcpMeetings.length,
+        totalAttendances: rcpAttendances.length,
+        totalPresentAttendances: rcpAttendancesTrue.length,
+        rcpMeetings,
+        rcpAttendances,
+        rcpAttendancesTrue,
+        attendanceByMeeting
+      });
+    } catch (error) {
+      console.error('Erreur lors du débogage des RCP:', error);
+      res.status(500).json({ message: "Failed to debug RCP data" });
+    }
+  });
+  
   // ========== DISTRIBUTION CALCULATIONS ==========
   app.get("/api/distribution/calculation", async (req, res) => {
     try {
