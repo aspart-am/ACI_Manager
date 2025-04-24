@@ -65,11 +65,13 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     const fixedShareResult = await query("SELECT value FROM settings WHERE key = 'fixed_revenue_share'");
     const rcpShareResult = await query("SELECT value FROM settings WHERE key = 'rcp_share'");
     const projectShareResult = await query("SELECT value FROM settings WHERE key = 'project_share'");
+    const managerWeightResult = await query("SELECT value FROM settings WHERE key = 'aci_manager_weight'");
     
     // Si les paramètres n'existent pas, utilisez les valeurs par défaut
     const fixedSharePercentage = parseFloat(fixedShareResult.rows[0]?.value || '0.5');
     const rcpSharePercentage = parseFloat(rcpShareResult.rows[0]?.value || '0.25');
     const projectSharePercentage = parseFloat(projectShareResult.rows[0]?.value || '0.25');
+    const managerWeight = parseFloat(managerWeightResult.rows[0]?.value || '1.5');
     
     // 2. Récupérer les revenus ACI
     const revenuesResult = await query("SELECT SUM(CAST(amount AS DECIMAL)) AS total FROM revenues WHERE category = 'ACI'");
@@ -79,7 +81,22 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     const allRevenuesResult = await query("SELECT SUM(CAST(amount AS DECIMAL)) AS total FROM revenues");
     const totalRevenue = parseFloat(allRevenuesResult.rows[0]?.total || '0');
     
-    // 4. Récupérer tous les associés
+    // 4. Récupérer toutes les dépenses
+    const expensesResult = await query("SELECT SUM(CAST(amount AS DECIMAL)) AS total FROM expenses");
+    const totalExpenses = parseFloat(expensesResult.rows[0]?.total || '0');
+    
+    // 5. Calculer le montant net à distribuer (revenu ACI - dépenses)
+    const netAmount = totalAciRevenue - totalExpenses;
+    
+    if (netAmount <= 0) {
+      return {
+        totalAciRevenue,
+        totalRevenue,
+        associateShares: []
+      };
+    }
+    
+    // 6. Récupérer tous les associés
     const associatesResult = await query("SELECT * FROM associates ORDER BY name");
     const associates: Associate[] = associatesResult.rows;
     
@@ -91,32 +108,50 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       };
     }
     
-    // 5. Calculer la part fixe par associé (50% divisé également)
-    const baseSharePerAssociate = (totalAciRevenue * fixedSharePercentage) / associates.length;
+    // 7. Calculer la rémunération fixe (50% du montant net)
+    const totalFixedShare = netAmount * fixedSharePercentage;
     
-    // 6. Calculer la part RCP (25%)
+    // 7.1 Calculer le poids total de tous les associés (avec pondération pour les cogérants)
+    let totalWeight = 0;
+    for (const associate of associates) {
+      const weight = associate.isManager 
+        ? parseFloat(associate.participationWeight) * managerWeight
+        : parseFloat(associate.participationWeight);
+      totalWeight += weight;
+    }
+    
+    // 7.2 Calculer la part fixe pour chaque associé (pondérée par le statut de cogérant)
+    const fixedShares: Record<number, number> = {};
+    for (const associate of associates) {
+      const weight = associate.isManager 
+        ? parseFloat(associate.participationWeight) * managerWeight
+        : parseFloat(associate.participationWeight);
+      fixedShares[associate.id] = (weight / totalWeight) * totalFixedShare;
+    }
+    
+    // 8. Calculer la part variable liée aux réunions RCP (25% du montant net)
     let rcpShares: Record<number, number> = {};
-    const totalRcpShare = totalAciRevenue * rcpSharePercentage;
+    const totalRcpShare = netAmount * rcpSharePercentage;
     
-    // 6.1 Récupérer toutes les réunions RCP
+    // 8.1 Récupérer toutes les réunions RCP
     const rcpMeetingsResult = await query("SELECT * FROM rcp_meetings");
     const rcpMeetings: RcpMeeting[] = rcpMeetingsResult.rows;
     
     if (rcpMeetings.length > 0) {
-      // 6.2 Récupérer toutes les présences RCP
+      // 8.2 Récupérer toutes les présences RCP
       const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance WHERE attended = true");
       const rcpAttendances: RcpAttendance[] = rcpAttendancesResult.rows;
       
-      // 6.3 Compter les présences par associé
+      // 8.3 Compter les présences par associé
       const attendanceCount: Record<number, number> = {};
       for (const attendance of rcpAttendances) {
         attendanceCount[attendance.associateId] = (attendanceCount[attendance.associateId] || 0) + 1;
       }
       
-      // 6.4 Calculer le total des présences
+      // 8.4 Calculer le total des présences
       const totalAttendances = Object.values(attendanceCount).reduce((sum, count) => sum + count, 0) || 1; // Éviter division par zéro
       
-      // 6.5 Calculer la part RCP pour chaque associé
+      // 8.5 Calculer la part RCP pour chaque associé
       for (const associateId in attendanceCount) {
         rcpShares[parseInt(associateId)] = (attendanceCount[parseInt(associateId)] / totalAttendances) * totalRcpShare;
       }
@@ -127,20 +162,20 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       }
     }
     
-    // 7. Calculer la part projet (25%)
+    // 9. Calculer la part variable liée aux missions/projets (25% du montant net)
     let projectShares: Record<number, number> = {};
-    const totalProjectShare = totalAciRevenue * projectSharePercentage;
+    const totalProjectShare = netAmount * projectSharePercentage;
     
-    // 7.1 Récupérer tous les projets
+    // 9.1 Récupérer tous les projets
     const projectsResult = await query("SELECT * FROM projects WHERE status = 'active'");
     const projects: Project[] = projectsResult.rows;
     
     if (projects.length > 0) {
-      // 7.2 Récupérer toutes les affectations de projet
+      // 9.2 Récupérer toutes les affectations de projet
       const projectAssignmentsResult = await query("SELECT * FROM project_assignments");
       const projectAssignments: ProjectAssignment[] = projectAssignmentsResult.rows;
       
-      // 7.3 Calculer la contribution totale pondérée
+      // 9.3 Calculer la contribution totale pondérée
       let totalContribution = 0;
       const contributionByAssociate: Record<number, number> = {};
       
@@ -156,7 +191,7 @@ export async function calculateDistribution(): Promise<DistributionResult> {
         }
       }
       
-      // 7.4 Calculer la part projet pour chaque associé
+      // 9.4 Calculer la part projet pour chaque associé
       if (totalContribution > 0) {
         for (const associateId in contributionByAssociate) {
           projectShares[parseInt(associateId)] = (contributionByAssociate[parseInt(associateId)] / totalContribution) * totalProjectShare;
@@ -174,9 +209,9 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       }
     }
     
-    // 8. Calculer les parts totales pour chaque associé
+    // 10. Calculer les parts totales pour chaque associé
     const associateShares: AssociateShare[] = associates.map(associate => {
-      const baseShare = baseSharePerAssociate;
+      const baseShare = fixedShares[associate.id] || 0;
       const rcpShare = rcpShares[associate.id] || 0;
       const projectShare = projectShares[associate.id] || 0;
       const totalShare = baseShare + rcpShare + projectShare;
@@ -194,7 +229,7 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       };
     });
     
-    // 9. Calculer le pourcentage de chaque associé
+    // 11. Calculer le pourcentage de chaque associé
     const totalDistributed = associateShares.reduce((sum, share) => sum + share.totalShare, 0);
     
     if (totalDistributed > 0) {

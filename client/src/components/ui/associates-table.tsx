@@ -33,10 +33,14 @@ interface Associate {
   id: number;
   name: string;
   profession: string;
-  isManager: boolean;
-  joinDate: string;
-  patientCount: number;
-  participationWeight: string;
+  isManager?: boolean;
+  is_manager?: boolean;
+  joinDate?: string;
+  join_date?: string;
+  patientCount?: number;
+  patient_count?: number;
+  participationWeight?: string;
+  participation_weight?: string;
 }
 
 interface AssociatesTableProps {
@@ -115,32 +119,40 @@ export default function AssociatesTable({
     {
       accessorKey: "isManager",
       header: "Statut",
-      cell: ({ row }) => (
-        row.original.isManager ? (
+      cell: ({ row }) => {
+        const isManager = row.original.isManager || row.original.is_manager;
+        return isManager ? (
           <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Gérant</Badge>
         ) : (
           <Badge variant="outline">Associé</Badge>
-        )
-      ),
+        );
+      },
     },
     {
       accessorKey: "joinDate",
       header: "Date d'intégration",
-      cell: ({ row }) => formatDate(row.original.joinDate),
+      cell: ({ row }) => {
+        const joinDate = row.original.joinDate || row.original.join_date;
+        return joinDate ? formatDate(joinDate) : "-";
+      },
     },
     {
       accessorKey: "patientCount",
       header: "Patients",
-      cell: ({ row }) => (
-        row.original.profession === "Médecin généraliste" 
-          ? row.original.patientCount
-          : "-"
-      ),
+      cell: ({ row }) => {
+        const patientCount = row.original.patientCount || row.original.patient_count;
+        return row.original.profession === "Médecin généraliste" 
+          ? patientCount || "-"
+          : "-";
+      },
     },
     {
       accessorKey: "participationWeight",
       header: "Poids",
-      cell: ({ row }) => `×${parseFloat(row.original.participationWeight).toFixed(1)}`,
+      cell: ({ row }) => {
+        const weight = row.original.participationWeight || row.original.participation_weight;
+        return weight ? `×${parseFloat(weight).toFixed(1)}` : "-";
+      },
     },
     {
       id: "actions",
@@ -194,10 +206,10 @@ export default function AssociatesTable({
               defaultValues={{
                 name: selectedAssociate.name,
                 profession: selectedAssociate.profession,
-                isManager: selectedAssociate.isManager,
-                joinDate: new Date(selectedAssociate.joinDate),
-                patientCount: selectedAssociate.patientCount,
-                participationWeight: parseFloat(selectedAssociate.participationWeight),
+                isManager: selectedAssociate.isManager || selectedAssociate.is_manager || false,
+                joinDate: new Date(selectedAssociate.joinDate || selectedAssociate.join_date || new Date()),
+                patientCount: selectedAssociate.patientCount || selectedAssociate.patient_count || 0,
+                participationWeight: parseFloat(selectedAssociate.participationWeight || selectedAssociate.participation_weight || "1.0"),
               }}
               onSuccess={handleEditSuccess}
             />
