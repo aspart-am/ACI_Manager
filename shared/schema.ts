@@ -32,7 +32,8 @@ export const associates = pgTable("associates", {
 
 export const associatesRelations = relations(associates, ({ many }) => ({
   rcpAttendances: many(rcpAttendance),
-  projectAssignments: many(projectAssignments)
+  projectAssignments: many(projectAssignments),
+  missionAssignments: many(missionAssignments)
 }));
 
 export const insertAssociateSchema = createInsertSchema(associates).pick({
@@ -124,6 +125,61 @@ export const insertRcpAttendanceSchema = createInsertSchema(rcpAttendance).pick(
   attended: true,
 });
 
+// Missions accessoires model
+export const accessoryMissions = pgTable("accessory_missions", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  status: text("status").notNull().default("active"),
+  budget: numeric("budget").notNull().default("0"),
+  type: text("type").notNull().default("santé publique"), // "santé publique", "crise sanitaire", "coopération", etc.
+  year: integer("year").notNull(),
+});
+
+// Missions assignments
+export const missionAssignments = pgTable("mission_assignments", {
+  id: serial("id").primaryKey(),
+  missionId: integer("mission_id").notNull().references(() => accessoryMissions.id),
+  associateId: integer("associate_id").notNull().references(() => associates.id),
+  contributionPercentage: numeric("contribution_percentage").notNull().default("100"),
+});
+
+// Définir les relations
+export const accessoryMissionsRelations = relations(accessoryMissions, ({ many }) => ({
+  assignments: many(missionAssignments)
+}));
+
+export const missionAssignmentsRelations = relations(missionAssignments, ({ one }) => ({
+  mission: one(accessoryMissions, {
+    fields: [missionAssignments.missionId],
+    references: [accessoryMissions.id]
+  }),
+  associate: one(associates, {
+    fields: [missionAssignments.associateId],
+    references: [associates.id]
+  })
+}));
+
+// Schemas d'insertion
+export const insertAccessoryMissionSchema = createInsertSchema(accessoryMissions).pick({
+  title: true,
+  description: true,
+  startDate: true,
+  endDate: true,
+  status: true,
+  budget: true,
+  type: true,
+  year: true,
+});
+
+export const insertMissionAssignmentSchema = createInsertSchema(missionAssignments).pick({
+  missionId: true,
+  associateId: true,
+  contributionPercentage: true,
+});
+
 // Project / Task model
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
@@ -212,6 +268,12 @@ export type Project = typeof projects.$inferSelect;
 
 export type InsertProjectAssignment = z.infer<typeof insertProjectAssignmentSchema>;
 export type ProjectAssignment = typeof projectAssignments.$inferSelect;
+
+export type InsertAccessoryMission = z.infer<typeof insertAccessoryMissionSchema>;
+export type AccessoryMission = typeof accessoryMissions.$inferSelect;
+
+export type InsertMissionAssignment = z.infer<typeof insertMissionAssignmentSchema>;
+export type MissionAssignment = typeof missionAssignments.$inferSelect;
 
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 export type Setting = typeof settings.$inferSelect;

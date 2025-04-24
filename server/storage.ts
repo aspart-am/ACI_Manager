@@ -7,6 +7,8 @@ import {
   type RcpAttendance, type InsertRcpAttendance,
   type Project, type InsertProject,
   type ProjectAssignment, type InsertProjectAssignment,
+  type AccessoryMission, type InsertAccessoryMission,
+  type MissionAssignment, type InsertMissionAssignment,
   type Setting, type InsertSetting
 } from "@shared/schema";
 import { query } from "./db";
@@ -58,6 +60,21 @@ export interface IStorage {
   getProjectAssignments(projectId: number): Promise<ProjectAssignment[]>;
   createProjectAssignment(assignment: InsertProjectAssignment): Promise<ProjectAssignment>;
   updateProjectAssignment(id: number, contribution: number): Promise<ProjectAssignment | undefined>;
+  
+  // Accessory Missions methods
+  getAccessoryMissions(): Promise<AccessoryMission[]>;
+  getAccessoryMissionsByYear(year: number): Promise<AccessoryMission[]>;
+  getAccessoryMission(id: number): Promise<AccessoryMission | undefined>;
+  createAccessoryMission(mission: InsertAccessoryMission): Promise<AccessoryMission>;
+  updateAccessoryMission(id: number, mission: Partial<InsertAccessoryMission>): Promise<AccessoryMission | undefined>;
+  deleteAccessoryMission(id: number): Promise<boolean>;
+  
+  // Mission Assignment methods
+  getMissionAssignments(missionId: number): Promise<MissionAssignment[]>;
+  getMissionAssignment(id: number): Promise<MissionAssignment | undefined>;
+  createMissionAssignment(assignment: InsertMissionAssignment): Promise<MissionAssignment>;
+  updateMissionAssignment(id: number, contributionPercentage: number): Promise<MissionAssignment | undefined>;
+  deleteMissionAssignment(id: number): Promise<boolean>;
   
   // Settings methods
   getSettings(): Promise<Setting[]>;
