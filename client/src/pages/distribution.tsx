@@ -62,10 +62,10 @@ export default function Distribution() {
   // Calculate net distribution amount
   const netDistribution = totalAci - totalExpenses;
 
-  // Prepare data for pie chart
-  const pieChartData = distributionData?.distribution?.map((item: any) => ({
-    name: item.name,
-    value: parseFloat(item.amount),
+  // Prepare data for pie chart - la propriété renvoyée par l'API est 'associateShares', pas 'distribution'
+  const pieChartData = distributionData?.associateShares?.map((item: any) => ({
+    name: item.associateName,
+    value: parseFloat(item.totalShare),
     profession: item.profession,
     isManager: item.isManager
   })) || [];
@@ -146,7 +146,7 @@ export default function Distribution() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               ) : (
-                <DistributionTable distribution={distributionData?.distribution || []} />
+                <DistributionTable distribution={distributionData?.associateShares || []} />
               )}
             </div>
           </CardContent>
@@ -323,15 +323,15 @@ export default function Distribution() {
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                  {distributionData.distribution.map((item: any) => (
-                                    <tr key={item.id}>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
+                                  {distributionData.associateShares.map((item: any) => (
+                                    <tr key={item.associateId}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.associateName}</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {distributionData.rcpAttendance[item.id]?.minutes || 0} min
+                                        {distributionData.rcpAttendance[item.associateId]?.minutes || 0} min
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {distributionData.rcpAttendance[item.id]?.percentage 
-                                          ? (distributionData.rcpAttendance[item.id].percentage * 100).toFixed(1) + '%' 
+                                        {distributionData.rcpAttendance[item.associateId]?.percentage 
+                                          ? (distributionData.rcpAttendance[item.associateId].percentage * 100).toFixed(1) + '%' 
                                           : '0%'}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -424,15 +424,15 @@ export default function Distribution() {
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                  {distributionData.distribution.map((item: any) => (
-                                    <tr key={item.id}>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
+                                  {distributionData.associateShares.map((item: any) => (
+                                    <tr key={item.associateId}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.associateName}</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {distributionData.projectContributions[item.id]?.projectCount || 0}
+                                        {distributionData.projectContributions[item.associateId]?.projectCount || 0}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {distributionData.projectContributions[item.id]?.percentage 
-                                          ? (distributionData.projectContributions[item.id].percentage * 100).toFixed(1) + '%' 
+                                        {distributionData.projectContributions[item.associateId]?.percentage 
+                                          ? (distributionData.projectContributions[item.associateId].percentage * 100).toFixed(1) + '%' 
                                           : '0%'}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
