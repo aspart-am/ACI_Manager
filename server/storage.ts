@@ -1,16 +1,15 @@
 import {
-  users, type User, type InsertUser,
-  associates, type Associate, type InsertAssociate,
-  expenses, type Expense, type InsertExpense,
-  revenues, type Revenue, type InsertRevenue,
-  rcpMeetings, type RcpMeeting, type InsertRcpMeeting,
-  rcpAttendance, type RcpAttendance, type InsertRcpAttendance,
-  projects, type Project, type InsertProject,
-  projectAssignments, type ProjectAssignment, type InsertProjectAssignment,
-  settings, type Setting, type InsertSetting
+  type User, type InsertUser,
+  type Associate, type InsertAssociate,
+  type Expense, type InsertExpense,
+  type Revenue, type InsertRevenue,
+  type RcpMeeting, type InsertRcpMeeting,
+  type RcpAttendance, type InsertRcpAttendance,
+  type Project, type InsertProject,
+  type ProjectAssignment, type InsertProjectAssignment,
+  type Setting, type InsertSetting
 } from "@shared/schema";
-import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { query } from "./db";
 
 export interface IStorage {
   // User methods

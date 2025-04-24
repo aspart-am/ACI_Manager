@@ -1,4 +1,4 @@
-import { Pool } from '@neondatabase/serverless';
+import { Client } from 'pg';
 
 async function main() {
   console.log("Initialisation de la base de données...");
@@ -8,13 +8,17 @@ async function main() {
     process.exit(1);
   }
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
 
   try {
+    // Se connecter d'abord au client
+    await client.connect();
+    console.log("Connecté à la base de données");
+
     // Création des tables
     console.log("Création des tables...");
     
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS "users" (
         "id" serial PRIMARY KEY,
         "username" text NOT NULL UNIQUE,
@@ -24,7 +28,7 @@ async function main() {
       );
     `);
     
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS "associates" (
         "id" serial PRIMARY KEY,
         "name" text NOT NULL,
@@ -36,7 +40,7 @@ async function main() {
       );
     `);
     
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS "expenses" (
         "id" serial PRIMARY KEY,
         "category" text NOT NULL,
@@ -48,7 +52,7 @@ async function main() {
       );
     `);
     
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS "revenues" (
         "id" serial PRIMARY KEY,
         "source" text NOT NULL,
@@ -59,7 +63,7 @@ async function main() {
       );
     `);
     
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS "rcp_meetings" (
         "id" serial PRIMARY KEY,
         "date" date NOT NULL,
@@ -68,7 +72,7 @@ async function main() {
       );
     `);
     
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS "projects" (
         "id" serial PRIMARY KEY,
         "title" text NOT NULL,
@@ -80,7 +84,7 @@ async function main() {
       );
     `);
     
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS "settings" (
         "id" serial PRIMARY KEY,
         "key" text NOT NULL UNIQUE,
@@ -91,7 +95,7 @@ async function main() {
     `);
     
     // Tables avec clés étrangères
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS "rcp_attendance" (
         "id" serial PRIMARY KEY,
         "rcp_id" integer NOT NULL,
@@ -106,7 +110,7 @@ async function main() {
       );
     `);
     
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS "project_assignments" (
         "id" serial PRIMARY KEY,
         "project_id" integer NOT NULL,
@@ -126,9 +130,9 @@ async function main() {
     // Ajout des données de paramétrage
     console.log("Ajout des paramètres par défaut...");
     
-    const settingsExists = await pool.query(`SELECT COUNT(*) FROM "settings"`);
+    const settingsExists = await client.query(`SELECT COUNT(*) FROM "settings"`);
     if (parseInt(settingsExists.rows[0].count) === 0) {
-      await pool.query(`
+      await client.query(`
         INSERT INTO "settings" ("key", "value", "category", "description")
         VALUES 
           ('aci_manager_weight', '1.5', 'distribution', 'Weight factor for managers in ACI distribution'),
@@ -140,10 +144,10 @@ async function main() {
     // Ajout des données de démo
     console.log("Ajout des données de démo...");
     
-    const associatesExists = await pool.query(`SELECT COUNT(*) FROM "associates"`);
+    const associatesExists = await client.query(`SELECT COUNT(*) FROM "associates"`);
     if (parseInt(associatesExists.rows[0].count) === 0) {
       // Associés
-      await pool.query(`
+      await client.query(`
         INSERT INTO "associates" ("name", "profession", "is_manager", "join_date", "patient_count", "participation_weight")
         VALUES 
           ('Dr. Rousseau', 'Médecin généraliste', true, '2020-01-01', 980, '1.5'),
@@ -153,7 +157,7 @@ async function main() {
       `);
       
       // Revenus
-      await pool.query(`
+      await client.query(`
         INSERT INTO "revenues" ("source", "description", "amount", "date", "category")
         VALUES 
           ('CPAM', '1er versement ACI', '19125', '2024-01-15', 'ACI'),
@@ -163,7 +167,7 @@ async function main() {
       `);
       
       // Dépenses
-      await pool.query(`
+      await client.query(`
         INSERT INTO "expenses" ("category", "description", "amount", "date", "is_recurring", "frequency")
         VALUES 
           ('Loyer', 'Loyer mensuel', '2500', '2024-01-01', true, 'monthly'),
@@ -173,7 +177,7 @@ async function main() {
       `);
       
       // Réunions RCP
-      await pool.query(`
+      await client.query(`
         INSERT INTO "rcp_meetings" ("date", "title", "description")
         VALUES 
           ('2024-01-10', 'RCP Mensuelle Janvier', 'Réunion mensuelle de coordination pluriprofessionnelle'),
@@ -182,7 +186,7 @@ async function main() {
       `);
       
       // Projets
-      await pool.query(`
+      await client.query(`
         INSERT INTO "projects" ("title", "description", "start_date", "end_date", "status", "weight")
         VALUES 
           ('Prévention Diabète', 'Projet de prévention du diabète pour les patients à risque', '2024-02-01', '2024-08-31', 'active', '1.5'),
@@ -195,7 +199,7 @@ async function main() {
     console.error("Erreur lors de l'initialisation :", error);
     process.exit(1);
   } finally {
-    await pool.end();
+    await client.end();
     process.exit(0);
   }
 }

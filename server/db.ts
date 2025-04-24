@@ -1,9 +1,4 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
-import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
+import { Client } from 'pg';
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -11,5 +6,23 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+// Client PostgreSQL simple
+export const client = new Client({
+  connectionString: process.env.DATABASE_URL,
+});
+
+// Se connecter au client dès l'importation du module
+client.connect()
+  .then(() => console.log('Connected to PostgreSQL database'))
+  .catch(e => console.error('Error connecting to PostgreSQL:', e));
+
+// Fonction pour exécuter des requêtes SQL
+export async function query(text: string, params?: any[]) {
+  try {
+    const result = await client.query(text, params);
+    return result;
+  } catch (error) {
+    console.error('Error executing query:', error);
+    throw error;
+  }
+}
