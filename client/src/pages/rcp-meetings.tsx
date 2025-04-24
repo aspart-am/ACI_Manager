@@ -199,6 +199,8 @@ export default function RcpMeetings() {
         title: 'Présence mise à jour',
         description: 'La présence a été mise à jour avec succès.',
       });
+      // Important: refetch les données après le succès
+      setTimeout(() => refetchAttendances(), 300);
     },
     onError: (error) => {
       toast({
@@ -220,7 +222,8 @@ export default function RcpMeetings() {
         title: 'Présence ajoutée',
         description: 'La présence a été ajoutée avec succès.',
       });
-      refetchAttendances();
+      // Important: refetch les données après le succès
+      setTimeout(() => refetchAttendances(), 300);
     },
     onError: (error) => {
       toast({

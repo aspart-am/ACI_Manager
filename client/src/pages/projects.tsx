@@ -223,20 +223,27 @@ export default function Projects() {
       const equalShare = calculateEqualContribution(projectAssignments.length);
       
       // Mettre à jour chaque affectation avec la nouvelle contribution
-      for (const assignment of projectAssignments) {
-        await apiRequest(`/api/project-assignments/${assignment.id}`, 'PATCH', {
+      const updatePromises = projectAssignments.map(assignment => 
+        apiRequest(`/api/project-assignments/${assignment.id}`, 'PATCH', {
           contribution: equalShare
-        });
-      }
+        })
+      );
+      
+      // Attendre que toutes les mises à jour soient terminées
+      await Promise.all(updatePromises);
       
       // Rafraîchir les données
       queryClient.invalidateQueries({ queryKey: ['/api/projects', selectedProjectId, 'assignments'] });
-      refetchProjectAssignments();
       
-      toast({
-        title: 'Contributions redistribuées',
-        description: `Chaque associé a maintenant une contribution de ${equalShare}%.`,
-      });
+      // Ajouter un délai avant de rafraîchir pour s'assurer que le cache est invalidé
+      setTimeout(() => {
+        refetchProjectAssignments();
+        
+        toast({
+          title: 'Contributions redistribuées',
+          description: `Chaque associé a maintenant une contribution de ${equalShare}%.`,
+        });
+      }, 300);
     } catch (error) {
       toast({
         title: 'Erreur',
@@ -570,9 +577,38 @@ export default function Projects() {
                                 <p className="font-medium">{associate?.name}</p>
                                 <p className="text-sm text-muted-foreground">{associate?.profession}</p>
                               </div>
-                              <Badge variant="outline">
-                                Contribution: {assignment.contribution}%
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  className="w-20"
+                                  min="0.1"
+                                  max="100"
+                                  step="0.1"
+                                  value={assignment.contribution}
+                                  onChange={async (e) => {
+                                    const newValue = e.target.value;
+                                    try {
+                                      await apiRequest(`/api/project-assignments/${assignment.id}`, 'PATCH', {
+                                        contribution: newValue
+                                      });
+                                      queryClient.invalidateQueries({ queryKey: ['/api/projects', selectedProjectId, 'assignments'] });
+                                      refetchProjectAssignments();
+                                      toast({
+                                        title: 'Contribution mise à jour',
+                                        description: `La contribution a été modifiée avec succès.`,
+                                      });
+                                    } catch (error) {
+                                      toast({
+                                        title: 'Erreur',
+                                        description: 'Impossible de modifier la contribution.',
+                                        variant: 'destructive',
+                                      });
+                                      console.error('Erreur lors de la modification de la contribution:', error);
+                                    }
+                                  }}
+                                />
+                                <span>%</span>
+                              </div>
                             </div>
                           );
                         })}
