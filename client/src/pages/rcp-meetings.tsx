@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -405,27 +405,149 @@ export default function RcpMeetings() {
         <div className="md:col-span-8">
           <Card>
             <CardHeader>
-              <CardTitle>
-                {selectedMeeting ? (
-                  <>
-                    {selectedMeeting.title} - {formatDate(selectedMeeting.date)}
-                  </>
-                ) : (
-                  'Gestion des présences'
-                )}
-              </CardTitle>
-              <CardDescription>
-                {selectedMeeting ? (
-                  <>
-                    Durée: {selectedMeeting.duration || 60} minutes
-                    {selectedMeeting.description && (
-                      <p className="mt-2">{selectedMeeting.description}</p>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>
+                    {selectedMeeting ? (
+                      <>
+                        {selectedMeeting.title} - {formatDate(selectedMeeting.date)}
+                      </>
+                    ) : (
+                      'Gestion des présences'
                     )}
-                  </>
-                ) : (
-                  'Sélectionnez une réunion pour gérer les présences'
+                  </CardTitle>
+                  <CardDescription>
+                    {selectedMeeting ? (
+                      <>
+                        Durée: {selectedMeeting.duration || 60} minutes
+                        {selectedMeeting.description && (
+                          <p className="mt-2">{selectedMeeting.description}</p>
+                        )}
+                      </>
+                    ) : (
+                      'Sélectionnez une réunion pour gérer les présences'
+                    )}
+                  </CardDescription>
+                </div>
+                
+                {selectedMeeting && (
+                  <div className="flex gap-2">
+                    <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="icon">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Modifier la réunion RCP</DialogTitle>
+                          <DialogDescription>
+                            Modifiez les détails de la réunion de concertation pluriprofessionnelle.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Form {...editForm}>
+                          <form onSubmit={editForm.handleSubmit(values => updateMutation.mutate(values))} className="space-y-4">
+                            <FormField
+                              control={editForm.control}
+                              name="date"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Date</FormLabel>
+                                  <FormControl>
+                                    <Input type="date" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={editForm.control}
+                              name="title"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Titre</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="RCP Mensuelle" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={editForm.control}
+                              name="description"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Description</FormLabel>
+                                  <FormControl>
+                                    <Textarea 
+                                      placeholder="Détails de la réunion..." 
+                                      {...field} 
+                                      value={field.value || ''}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={editForm.control}
+                              name="duration"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Durée (minutes)</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      type="number" 
+                                      min="15" 
+                                      step="5" 
+                                      value={field.value?.toString() || "60"}
+                                      onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 60)}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <DialogFooter>
+                              <Button type="submit" disabled={updateMutation.isPending}>
+                                {updateMutation.isPending ? 'Mise à jour...' : 'Mettre à jour'}
+                              </Button>
+                            </DialogFooter>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
+
+                    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="icon">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Cette action ne peut pas être annulée. Cela supprimera définitivement cette réunion RCP
+                            et toutes les données de présence associées.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => deleteMutation.mutate()}
+                            disabled={deleteMutation.isPending}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 )}
-              </CardDescription>
+              </div>
             </CardHeader>
             <CardContent>
               {!selectedMeetingId ? (

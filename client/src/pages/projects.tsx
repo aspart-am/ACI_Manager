@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Briefcase } from 'lucide-react';
+import { Briefcase, Pencil, Trash2, Calculator } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { apiRequest } from '@/lib/queryClient';
 
 // Schéma de validation pour le formulaire des projets
@@ -51,6 +54,9 @@ export default function Projects() {
 
   // État pour les sélections
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [autoDistribute, setAutoDistribute] = useState(true);
 
   // Formulaires
   const projectForm = useForm<z.infer<typeof projectFormSchema>>({
@@ -190,6 +196,54 @@ export default function Projects() {
   // Fonction pour calculer la contribution totale d'un projet
   const calculateTotalContribution = (assignments: any[]) => {
     return assignments.reduce((total, assignment) => total + parseFloat(assignment.contribution || '0'), 0);
+  };
+  
+  // Fonction pour calculer la contribution égale par associé
+  const calculateEqualContribution = (totalAssociates: number) => {
+    if (totalAssociates <= 0) return '0';
+    // Répartir 100% de contribution également entre tous les associés
+    const equalShare = 100 / totalAssociates;
+    return roundToTwoDecimals(equalShare).toString();
+  };
+  
+  // Effet pour mettre à jour automatiquement la contribution si l'option est activée
+  useEffect(() => {
+    if (autoDistribute && selectedProjectId) {
+      const equalShare = calculateEqualContribution(projectAssignments.length + 1);
+      assignmentForm.setValue('contribution', equalShare);
+    }
+  }, [autoDistribute, assignmentForm, projectAssignments.length, selectedProjectId]);
+  
+  // Fonction pour redistribuer équitablement les contributions entre tous les associés assignés à un projet
+  const redistributeContributions = async () => {
+    if (!selectedProjectId || projectAssignments.length === 0) return;
+    
+    try {
+      const equalShare = calculateEqualContribution(projectAssignments.length);
+      
+      // Mettre à jour chaque affectation avec la nouvelle contribution
+      for (const assignment of projectAssignments) {
+        await apiRequest(`/api/project-assignments/${assignment.id}`, 'PATCH', {
+          contribution: equalShare
+        });
+      }
+      
+      // Rafraîchir les données
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', selectedProjectId, 'assignments'] });
+      refetchProjectAssignments();
+      
+      toast({
+        title: 'Contributions redistribuées',
+        description: `Chaque associé a maintenant une contribution de ${equalShare}%.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de redistribuer les contributions.',
+        variant: 'destructive',
+      });
+      console.error('Erreur lors de la redistribution des contributions:', error);
+    }
   };
 
   return (
