@@ -11,7 +11,9 @@ import {
   insertRcpAttendanceSchema,
   insertProjectSchema,
   insertProjectAssignmentSchema,
-  insertSettingSchema
+  insertSettingSchema,
+  insertAccessoryMissionSchema,
+  insertMissionAssignmentSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -423,6 +425,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Erreur lors du calcul de distribution:', error);
       res.status(500).json({ message: "Failed to calculate distribution" });
+    }
+  });
+
+  // ========== ACCESSORY MISSIONS ROUTES ==========
+  app.get("/api/accessory-missions", async (req, res) => {
+    try {
+      // Si un paramètre d'année est fourni, filtrer par année
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
+      let missions;
+      
+      if (year) {
+        missions = await storage.getAccessoryMissionsByYear(year);
+      } else {
+        missions = await storage.getAccessoryMissions();
+      }
+      
+      res.json(missions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch accessory missions" });
+    }
+  });
+  
+  app.get("/api/accessory-missions/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const mission = await storage.getAccessoryMission(id);
+      
+      if (!mission) {
+        return res.status(404).json({ message: "Accessory mission not found" });
+      }
+      
+      res.json(mission);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch accessory mission" });
+    }
+  });
+  
+  app.post("/api/accessory-missions", async (req, res) => {
+    try {
+      const validatedData = insertAccessoryMissionSchema.parse(req.body);
+      const mission = await storage.createAccessoryMission(validatedData);
+      res.status(201).json(mission);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid accessory mission data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create accessory mission" });
+    }
+  });
+  
+  app.patch("/api/accessory-missions/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const partialData = req.body;
+      
+      // Valider les données partielles
+      Object.keys(partialData).forEach(key => {
+        if (!Object.keys(insertAccessoryMissionSchema.shape).includes(key)) {
+          throw new Error(`Invalid field: ${key}`);
+        }
+      });
+      
+      const updatedMission = await storage.updateAccessoryMission(id, partialData);
+      
+      if (!updatedMission) {
+        return res.status(404).json({ message: "Accessory mission not found" });
+      }
+      
+      res.json(updatedMission);
+    } catch (error) {
+      if (error instanceof Error) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to update accessory mission" });
+    }
+  });
+  
+  app.delete("/api/accessory-missions/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteAccessoryMission(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Accessory mission not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete accessory mission" });
+    }
+  });
+  
+  // Routes pour les attributions de missions
+  app.get("/api/accessory-missions/:id/assignments", async (req, res) => {
+    try {
+      const missionId = parseInt(req.params.id);
+      const assignments = await storage.getMissionAssignments(missionId);
+      res.json(assignments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch mission assignments" });
+    }
+  });
+  
+  app.post("/api/mission-assignments", async (req, res) => {
+    try {
+      const validatedData = insertMissionAssignmentSchema.parse(req.body);
+      const assignment = await storage.createMissionAssignment(validatedData);
+      res.status(201).json(assignment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid mission assignment data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create mission assignment" });
+    }
+  });
+  
+  app.patch("/api/mission-assignments/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { contributionPercentage } = req.body;
+      
+      if (isNaN(Number(contributionPercentage))) {
+        return res.status(400).json({ message: "Contribution percentage must be a number" });
+      }
+      
+      const updatedAssignment = await storage.updateMissionAssignment(id, Number(contributionPercentage));
+      
+      if (!updatedAssignment) {
+        return res.status(404).json({ message: "Mission assignment not found" });
+      }
+      
+      res.json(updatedAssignment);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update mission assignment" });
+    }
+  });
+  
+  app.delete("/api/mission-assignments/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteMissionAssignment(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Mission assignment not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete mission assignment" });
     }
   });
 

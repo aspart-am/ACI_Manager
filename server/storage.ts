@@ -151,9 +151,30 @@ export class DatabaseStorage implements IStorage {
       updates.push(`profession = $${values.length}`);
     }
     
-    if (isManager !== undefined) {
+    // Si le statut de gérant a changé, mettre à jour le poids de participation en conséquence
+    let updatedWeight = participationWeight;
+    
+    // Vérifier si le statut de gérant a changé (gestion des deux formats : camelCase et snake_case)
+    const currentIsManager = current.isManager || (current as any).is_manager;
+    if (isManager !== undefined && isManager !== currentIsManager) {
       values.push(isManager);
       updates.push(`is_manager = $${values.length}`);
+      
+      // Si l'associé devient gérant, son poids de participation passe à 1.5
+      // sauf si une valeur explicite a été fournie
+      if (isManager === true && participationWeight === undefined) {
+        // Récupération de la valeur de pondération des gérants depuis les paramètres
+        const managerWeightSetting = await this.getSetting('manager_weight');
+        const managerWeight = managerWeightSetting ? managerWeightSetting.value : '1.5';
+        
+        updatedWeight = managerWeight;
+      }
+      
+      // Si l'associé n'est plus gérant, son poids revient à 1.0
+      // sauf si une valeur explicite a été fournie
+      if (isManager === false && participationWeight === undefined) {
+        updatedWeight = '1.0';
+      }
     }
     
     if (joinDate !== undefined) {
@@ -166,7 +187,11 @@ export class DatabaseStorage implements IStorage {
       updates.push(`patient_count = $${values.length}`);
     }
     
-    if (participationWeight !== undefined) {
+    // Utiliser la valeur calculée de poids si elle existe, sinon utiliser celle fournie
+    if (updatedWeight !== undefined) {
+      values.push(updatedWeight);
+      updates.push(`participation_weight = $${values.length}`);
+    } else if (participationWeight !== undefined) {
       values.push(participationWeight);
       updates.push(`participation_weight = $${values.length}`);
     }
@@ -493,6 +518,143 @@ export class DatabaseStorage implements IStorage {
       [contribution.toString(), id]
     );
     return result.rows[0] || undefined;
+  }
+
+  // Accessory Missions methods
+  async getAccessoryMissions(): Promise<AccessoryMission[]> {
+    const result = await query('SELECT * FROM accessory_missions ORDER BY start_date DESC');
+    return result.rows;
+  }
+
+  async getAccessoryMissionsByYear(year: number): Promise<AccessoryMission[]> {
+    const result = await query('SELECT * FROM accessory_missions WHERE year = $1 ORDER BY start_date DESC', [year]);
+    return result.rows;
+  }
+
+  async getAccessoryMission(id: number): Promise<AccessoryMission | undefined> {
+    const result = await query('SELECT * FROM accessory_missions WHERE id = $1', [id]);
+    return result.rows[0] || undefined;
+  }
+
+  async createAccessoryMission(mission: InsertAccessoryMission): Promise<AccessoryMission> {
+    const { title, description, startDate, endDate, status, budget, type, year } = mission;
+    const result = await query(
+      `INSERT INTO accessory_missions(
+        title, description, start_date, end_date, status, budget, type, year
+      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        title,
+        description || null,
+        startDate,
+        endDate || null,
+        status || 'active',
+        budget || '0',
+        type || 'santé publique',
+        year
+      ]
+    );
+    return result.rows[0];
+  }
+
+  async updateAccessoryMission(id: number, mission: Partial<InsertAccessoryMission>): Promise<AccessoryMission | undefined> {
+    const current = await this.getAccessoryMission(id);
+    if (!current) return undefined;
+
+    const { title, description, startDate, endDate, status, budget, type, year } = mission;
+    
+    let queryStr = 'UPDATE accessory_missions SET ';
+    const values: any[] = [];
+    const updates: string[] = [];
+    
+    if (title !== undefined) {
+      values.push(title);
+      updates.push(`title = $${values.length}`);
+    }
+    
+    if (description !== undefined) {
+      values.push(description);
+      updates.push(`description = $${values.length}`);
+    }
+    
+    if (startDate !== undefined) {
+      values.push(startDate);
+      updates.push(`start_date = $${values.length}`);
+    }
+    
+    if (endDate !== undefined) {
+      values.push(endDate);
+      updates.push(`end_date = $${values.length}`);
+    }
+    
+    if (status !== undefined) {
+      values.push(status);
+      updates.push(`status = $${values.length}`);
+    }
+    
+    if (budget !== undefined) {
+      values.push(budget);
+      updates.push(`budget = $${values.length}`);
+    }
+    
+    if (type !== undefined) {
+      values.push(type);
+      updates.push(`type = $${values.length}`);
+    }
+    
+    if (year !== undefined) {
+      values.push(year);
+      updates.push(`year = $${values.length}`);
+    }
+    
+    if (updates.length === 0) return current;
+    
+    values.push(id);
+    queryStr += updates.join(', ') + ` WHERE id = $${values.length} RETURNING *`;
+    
+    const result = await query(queryStr, values);
+    return result.rows[0];
+  }
+
+  async deleteAccessoryMission(id: number): Promise<boolean> {
+    const result = await query('DELETE FROM accessory_missions WHERE id = $1 RETURNING id', [id]);
+    return result.rowCount! > 0;
+  }
+
+  // Mission Assignment methods
+  async getMissionAssignments(missionId: number): Promise<MissionAssignment[]> {
+    const result = await query('SELECT * FROM mission_assignments WHERE mission_id = $1', [missionId]);
+    return result.rows;
+  }
+
+  async getMissionAssignment(id: number): Promise<MissionAssignment | undefined> {
+    const result = await query('SELECT * FROM mission_assignments WHERE id = $1', [id]);
+    return result.rows[0] || undefined;
+  }
+
+  async createMissionAssignment(assignment: InsertMissionAssignment): Promise<MissionAssignment> {
+    const { missionId, associateId, contributionPercentage } = assignment;
+    const result = await query(
+      'INSERT INTO mission_assignments(mission_id, associate_id, contribution_percentage) VALUES($1, $2, $3) RETURNING *',
+      [
+        missionId,
+        associateId,
+        contributionPercentage || '100'
+      ]
+    );
+    return result.rows[0];
+  }
+
+  async updateMissionAssignment(id: number, contributionPercentage: number): Promise<MissionAssignment | undefined> {
+    const result = await query(
+      'UPDATE mission_assignments SET contribution_percentage = $1 WHERE id = $2 RETURNING *',
+      [contributionPercentage, id]
+    );
+    return result.rows[0] || undefined;
+  }
+
+  async deleteMissionAssignment(id: number): Promise<boolean> {
+    const result = await query('DELETE FROM mission_assignments WHERE id = $1 RETURNING id', [id]);
+    return result.rowCount! > 0;
   }
 
   // Settings methods
