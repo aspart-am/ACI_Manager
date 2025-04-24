@@ -195,7 +195,10 @@ export default function RcpMeetings() {
     mutationFn: ({ id, attended }: { id: number; attended: boolean }) => 
       apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended }),
     onSuccess: () => {
+      // Invalider les requêtes de réunions et de présences
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] }); // Très important pour la répartition
       toast({
         title: 'Présence mise à jour',
         description: 'La présence a été mise à jour avec succès.',
@@ -218,7 +221,10 @@ export default function RcpMeetings() {
     mutationFn: ({ rcpId, associateId, attended }: { rcpId: number; associateId: number; attended: boolean }) => 
       apiRequest('/api/rcp-attendances', 'POST', { rcpId, associateId, attended }),
     onSuccess: () => {
+      // Invalider les requêtes de réunions et de présences
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] }); // Très important pour la répartition
       toast({
         title: 'Présence ajoutée',
         description: 'La présence a été ajoutée avec succès.',
@@ -548,7 +554,10 @@ export default function RcpMeetings() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Annuler</AlertDialogCancel>
                           <AlertDialogAction 
-                            onClick={() => deleteMutation.mutate()}
+                            onClick={(e) => {
+                              e.preventDefault(); // Empêcher l'action par défaut
+                              deleteMutation.mutate();
+                            }}
                             disabled={deleteMutation.isPending}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >

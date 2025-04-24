@@ -166,9 +166,10 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     const rcpMeetings: RcpMeeting[] = rcpMeetingsResult.rows;
     
     if (rcpMeetings.length > 0) {
-      // 8.2 Récupérer toutes les présences RCP
-      const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance WHERE attended = true");
-      const rcpAttendances: RcpAttendance[] = rcpAttendancesResult.rows;
+      // 8.2 Récupérer toutes les présences RCP (sans filtrer par attended pour pouvoir afficher toutes les présences)
+      const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance");
+      // Filtrer seulement les présences marquées comme "attended = true" pour le calcul
+      const rcpAttendances: RcpAttendance[] = rcpAttendancesResult.rows.filter(a => a.attended === true);
       
       // 8.3 Calculer le temps de présence par associé (en minutes)
       const attendanceTimeByAssociate: Record<number, number> = {};
@@ -367,9 +368,10 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     // Calcul des informations de RCP pour l'interface UI
     const rcpAttendanceInfo: Record<number, { minutes: number; percentage: number }> = {};
     
-    // Récupérer les données des présences aux RCP
-    const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance WHERE attended = true");
-    const rcpAttendances: RcpAttendance[] = rcpAttendancesResult.rows;
+    // Récupérer les données des présences aux RCP (sans filtrer afin d'avoir toutes les données)
+    const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance");
+    // Mais on filtre pour les calculs, pour ne garder que les présents
+    const rcpAttendances: RcpAttendance[] = rcpAttendancesResult.rows.filter(a => a.attended === true);
     
     // Mettre à jour les réunions RCP avec le nombre de participants
     for (const meeting of rcpMeetings) {
