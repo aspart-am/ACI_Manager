@@ -440,6 +440,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Route pour mettre à jour une affectation de projet
+  app.patch("/api/project-assignments/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { contribution } = req.body;
+      
+      // Validation de base
+      if (typeof contribution !== 'string' && typeof contribution !== 'number') {
+        return res.status(400).json({ message: "Contribution must be a string or number" });
+      }
+      
+      // Convertir en nombre si nécessaire
+      const contributionValue = typeof contribution === 'string' 
+        ? parseFloat(contribution)
+        : contribution;
+        
+      if (isNaN(contributionValue)) {
+        return res.status(400).json({ message: "Contribution must be a valid number" });
+      }
+      
+      const updatedAssignment = await storage.updateProjectAssignment(id, contributionValue);
+      
+      if (!updatedAssignment) {
+        return res.status(404).json({ message: "Project assignment not found" });
+      }
+      
+      res.json(updatedAssignment);
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de l'affectation du projet:", error);
+      res.status(500).json({ message: "Failed to update project assignment" });
+    }
+  });
+  
   // ========== RCP MEETINGS ROUTES ==========
   app.get("/api/rcp-meetings", async (req, res) => {
     try {
