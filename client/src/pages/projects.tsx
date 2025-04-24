@@ -25,10 +25,7 @@ const projectFormSchema = z.object({
   startDate: z.string().min(1, { message: 'La date de début est requise' }),
   endDate: z.string().optional(),
   status: z.string().min(1, { message: 'Le statut est requis' }),
-  weight: z.preprocess(
-    (val) => parseFloat(val as string),
-    z.number().min(0.1, { message: 'Le poids doit être supérieur à 0.1' })
-  ),
+  weight: z.string().min(1, { message: 'Le poids est requis' }),
 });
 
 // Schéma de validation pour le formulaire d'affectation à un projet
@@ -41,11 +38,7 @@ const assignmentFormSchema = z.object({
     (val) => parseInt(val as string, 10),
     z.number().min(1, { message: 'Veuillez sélectionner un associé' })
   ),
-  contribution: z.preprocess(
-    (val) => parseFloat(val as string),
-    z.number().min(0.1, { message: 'La contribution doit être supérieure à 0.1' })
-      .max(100, { message: 'La contribution ne peut pas dépasser 100%' })
-  ),
+  contribution: z.string().min(1, { message: 'La contribution est requise' }),
 });
 
 export default function Projects() {
@@ -68,7 +61,7 @@ export default function Projects() {
       startDate: '',
       endDate: '',
       status: 'active',
-      weight: 1,
+      weight: '1', // Convertir en chaîne pour correspondre au schéma
     },
   });
 
@@ -77,7 +70,7 @@ export default function Projects() {
     defaultValues: {
       projectId: selectedProjectId || undefined,
       associateId: undefined,
-      contribution: 10,
+      contribution: '10', // Convertir en chaîne pour correspondre au schéma
     },
   });
 
