@@ -175,18 +175,27 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       // 8.3 Calculer le temps de présence par associé (en minutes)
       const attendanceTimeByAssociate: Record<number, number> = {};
       
-      // Analyse des structures de données
+      // Analyse des structures de données pour trouver les bons noms de propriétés
       console.log("Types de données RCP: ", {
         firstMeeting: rcpMeetings.length > 0 ? rcpMeetings[0] : null,
-        firstAttendance: rcpAttendances.length > 0 ? rcpAttendances[0] : null
+        firstAttendance: rcpAttendances.length > 0 ? rcpAttendances[0] : null,
+        columns: rcpAttendances.length > 0 ? Object.keys(rcpAttendances[0]) : []
       });
       
       for (const attendance of rcpAttendances) {
-        // Conversion explicite des IDs en nombres pour éviter des problèmes de type
-        const rcpIdNum = Number(attendance.rcpId);
-        const associateIdNum = Number(attendance.associateId);
+        // Utilisons les propriétés disponibles dans l'objet attendance
+        // Les propriétés peuvent être nommées différemment selon comment drizzle les récupère
+        // Nous devons nous adapter aux données telles qu'elles sont
+        const propNames = Object.keys(attendance);
         
-        console.log(`Traitement de l'enregistrement de présence: rcpId=${rcpIdNum} (type: ${typeof rcpIdNum}), associateId=${associateIdNum}`);
+        // Trouver les propriétés qui contiennent "rcp" et "associate"
+        const rcpProp = propNames.find(p => p.toLowerCase().includes('rcp')) || 'rcpId';
+        const associateProp = propNames.find(p => p.toLowerCase().includes('associate')) || 'associateId';
+        
+        const rcpIdNum = Number(attendance[rcpProp]);
+        const associateIdNum = Number(attendance[associateProp]);
+        
+        console.log(`Traitement de la présence: ${rcpProp}=${rcpIdNum}, ${associateProp}=${associateIdNum}`);
         
         // Trouver la réunion correspondante pour obtenir la durée
         const meeting = rcpMeetings.find(m => Number(m.id) === rcpIdNum);
@@ -394,16 +403,27 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     for (const meeting of rcpMeetings) {
       // Conversion explicite de l'ID en nombre
       const meetingId = Number(meeting.id);
-      const attendances = rcpAttendances.filter(a => Number(a.rcpId) === meetingId);
+      
+      // Filtrer en utilisant une approche plus dynamique pour éviter les problèmes de noms de propriétés
+      const attendances = rcpAttendances.filter(a => {
+        const propNames = Object.keys(a);
+        const rcpProp = propNames.find(p => p.toLowerCase().includes('rcp')) || 'rcpId';
+        return Number(a[rcpProp]) === meetingId;
+      });
+      
       meeting.attendanceCount = attendances.length;
     }
     
     // Calculer les temps de présence par associé
     const attendanceByAssociate: Record<number, number> = {};
     for (const attendance of rcpAttendances) {
-      // Conversion explicite des IDs en nombres
-      const rcpIdNum = Number(attendance.rcpId);
-      const associateIdNum = Number(attendance.associateId);
+      // Utiliser une approche dynamique pour trouver les propriétés
+      const propNames = Object.keys(attendance);
+      const rcpProp = propNames.find(p => p.toLowerCase().includes('rcp')) || 'rcpId';
+      const associateProp = propNames.find(p => p.toLowerCase().includes('associate')) || 'associateId';
+      
+      const rcpIdNum = Number(attendance[rcpProp]);
+      const associateIdNum = Number(attendance[associateProp]);
       
       // Trouver la réunion correspondante
       const meeting = rcpMeetings.find(m => Number(m.id) === rcpIdNum);
@@ -428,10 +448,23 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     const projectAssignmentsResult = await query("SELECT * FROM project_assignments");
     const projectAssignments: ProjectAssignment[] = projectAssignmentsResult.rows;
     
+    // Analyse des structures de données pour les projets
+    console.log("Structure des assignations de projet:", 
+      projectAssignments.length > 0 ? Object.keys(projectAssignments[0]) : [],
+      projectAssignments.length > 0 ? projectAssignments[0] : null
+    );
+    
     // Mettre à jour les projets avec le nombre de contributeurs
     for (const project of projects) {
-      const assignments = projectAssignments.filter(a => a.projectId === project.id);
+      // Utiliser une approche dynamique pour détecter les noms de propriétés
+      const assignments = projectAssignments.filter(a => {
+        const props = Object.keys(a);
+        const projectIdProp = props.find(p => p.toLowerCase().includes('project_id')) || 'projectId';
+        return Number(a[projectIdProp]) === Number(project.id);
+      });
+      
       project.assignmentCount = assignments.length;
+      console.log(`Projet ${project.id} (${project.title}): ${assignments.length} contributions`);
     }
     
     // Calculer les contributions par associé
@@ -439,21 +472,41 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     let totalContrib = 0;
     
     for (const assignment of projectAssignments) {
-      const project = projects.find(p => p.id === assignment.projectId);
+      // Récupérer les noms de propriétés de manière dynamique
+      const props = Object.keys(assignment);
+      const projectIdProp = props.find(p => p.toLowerCase().includes('project_id')) || 'projectId';
+      const associateIdProp = props.find(p => p.toLowerCase().includes('associate_id')) || 'associateId';
+      const contributionProp = props.find(p => p.toLowerCase().includes('contribution')) || 'contribution';
+      
+      const projectId = Number(assignment[projectIdProp]);
+      const associateId = Number(assignment[associateIdProp]);
+      
+      console.log(`Affectation: projectId=${projectId}, associateId=${associateId}, contribution=${assignment[contributionProp]}`);
+      
+      const project = projects.find(p => Number(p.id) === projectId);
       if (project) {
         const projectWeight = parseFloat(project.weight || '1.0');
-        const assignmentContribution = parseFloat(assignment.contribution || '1.0');
+        const assignmentContribution = parseFloat(String(assignment[contributionProp]) || '1.0');
         const weightedContrib = projectWeight * assignmentContribution;
         
-        contribuByAssociate[assignment.associateId] = (contribuByAssociate[assignment.associateId] || 0) + weightedContrib;
+        console.log(`  Contribution pondérée: ${weightedContrib} (poids projet: ${projectWeight}, contribution: ${assignmentContribution})`);
+        
+        contribuByAssociate[associateId] = (contribuByAssociate[associateId] || 0) + weightedContrib;
         totalContrib += weightedContrib;
+      } else {
+        console.log(`  Projet non trouvé pour l'ID ${projectId}`);
       }
     }
     
     // Compter les projets par associé
     const projectsPerAssociate: Record<number, number> = {};
     for (const assignment of projectAssignments) {
-      projectsPerAssociate[assignment.associateId] = (projectsPerAssociate[assignment.associateId] || 0) + 1;
+      // Récupérer les noms de propriétés de manière dynamique
+      const props = Object.keys(assignment);
+      const associateIdProp = props.find(p => p.toLowerCase().includes('associate_id')) || 'associateId';
+      const associateId = Number(assignment[associateIdProp]);
+      
+      projectsPerAssociate[associateId] = (projectsPerAssociate[associateId] || 0) + 1;
     }
     
     // Calculer les pourcentages si on a des contributions
