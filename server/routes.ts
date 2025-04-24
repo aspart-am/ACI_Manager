@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { calculateDistribution } from "./distribution-calculator";
 import { z } from "zod";
 import { 
   insertAssociateSchema,
@@ -416,62 +417,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== DISTRIBUTION CALCULATIONS ==========
   app.get("/api/distribution/calculation", async (req, res) => {
     try {
-      // Fetch all the data needed for distribution calculation
-      const associates = await storage.getAssociates();
-      const revenues = await storage.getRevenues();
-      const expenses = await storage.getExpenses();
-      const settings = await storage.getSettings();
-      
-      // Calculate total ACI revenue
-      const aciRevenues = revenues.filter(rev => rev.category === "ACI");
-      const totalAciRevenue = aciRevenues.reduce((sum, rev) => sum + Number(rev.amount), 0);
-      
-      // Calculate total expenses
-      const totalExpenses = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
-      
-      // Net amount to distribute
-      const netDistribution = totalAciRevenue - totalExpenses;
-      
-      // Get settings values
-      const managerWeightSetting = settings.find(s => s.key === "aci_manager_weight");
-      const managerWeight = managerWeightSetting ? Number(managerWeightSetting.value) : 1.5;
-      
-      // Calculate base distribution factor
-      let totalWeight = 0;
-      associates.forEach(associate => {
-        const weight = associate.isManager 
-          ? Number(associate.participationWeight) * managerWeight 
-          : Number(associate.participationWeight);
-        totalWeight += weight;
-      });
-      
-      // Calculate distribution for each associate
-      const distribution = associates.map(associate => {
-        const weight = associate.isManager 
-          ? Number(associate.participationWeight) * managerWeight 
-          : Number(associate.participationWeight);
-        
-        const sharePercentage = (weight / totalWeight) * 100;
-        const amount = (netDistribution * sharePercentage) / 100;
-        
-        return {
-          associateId: associate.id,
-          name: associate.name,
-          profession: associate.profession,
-          isManager: associate.isManager,
-          weight,
-          sharePercentage,
-          amount
-        };
-      });
-      
-      res.json({
-        totalAciRevenue,
-        totalExpenses,
-        netDistribution,
-        distribution
-      });
+      // Utiliser le nouveau système de calcul de distribution
+      const distributionResult = await calculateDistribution();
+      res.json(distributionResult);
     } catch (error) {
+      console.error('Erreur lors du calcul de distribution:', error);
       res.status(500).json({ message: "Failed to calculate distribution" });
     }
   });
