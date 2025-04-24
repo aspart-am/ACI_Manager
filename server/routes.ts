@@ -347,6 +347,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.get("/api/projects/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+  
+  app.patch("/api/projects/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { title, description, startDate, endDate, status, weight } = req.body;
+      
+      // Validations de base
+      if (title && typeof title !== 'string') {
+        return res.status(400).json({ message: "Title must be a string" });
+      }
+      
+      if (description && typeof description !== 'string') {
+        return res.status(400).json({ message: "Description must be a string" });
+      }
+      
+      if (startDate && typeof startDate !== 'string') {
+        return res.status(400).json({ message: "Start date must be a string" });
+      }
+      
+      if (endDate && typeof endDate !== 'string') {
+        return res.status(400).json({ message: "End date must be a string" });
+      }
+      
+      if (status && typeof status !== 'string') {
+        return res.status(400).json({ message: "Status must be a string" });
+      }
+      
+      if (weight && typeof weight !== 'string' && isNaN(parseFloat(weight))) {
+        return res.status(400).json({ message: "Weight must be a number or a string representing a number" });
+      }
+      
+      const weightValue = weight ? weight.toString() : undefined;
+      
+      const updatedProject = await storage.updateProject(id, { 
+        title, 
+        description, 
+        startDate, 
+        endDate, 
+        status, 
+        weight: weightValue 
+      });
+      
+      if (!updatedProject) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      res.json(updatedProject);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+  
+  app.delete("/api/projects/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteProject(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+  
   app.get("/api/projects/:id/assignments", async (req, res) => {
     try {
       const projectId = parseInt(req.params.id);
@@ -392,6 +473,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(meeting);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch RCP meeting" });
+    }
+  });
+  
+  app.patch("/api/rcp-meetings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { title, description, date, duration } = req.body;
+      
+      // Validation minimale
+      if (title && typeof title !== 'string') {
+        return res.status(400).json({ message: "Title must be a string" });
+      }
+      
+      if (description && typeof description !== 'string') {
+        return res.status(400).json({ message: "Description must be a string" });
+      }
+      
+      if (date && typeof date !== 'string') {
+        return res.status(400).json({ message: "Date must be a string" });
+      }
+      
+      if (duration && (isNaN(parseInt(duration)) || parseInt(duration) < 15)) {
+        return res.status(400).json({ message: "Duration must be a number greater than or equal to 15" });
+      }
+      
+      const updatedMeeting = await storage.updateRcpMeeting(id, { 
+        title, 
+        description, 
+        date, 
+        duration: duration ? parseInt(duration) : undefined 
+      });
+      
+      if (!updatedMeeting) {
+        return res.status(404).json({ message: "RCP meeting not found" });
+      }
+      
+      res.json(updatedMeeting);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update RCP meeting" });
+    }
+  });
+  
+  app.delete("/api/rcp-meetings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteRcpMeeting(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "RCP meeting not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete RCP meeting" });
     }
   });
 

@@ -544,6 +544,15 @@ export class DatabaseStorage implements IStorage {
     const result = await query(queryStr, values);
     return result.rows[0];
   }
+  
+  async deleteProject(id: number): Promise<boolean> {
+    // D'abord, supprimer toutes les affectations associées à ce projet
+    await query('DELETE FROM project_assignments WHERE project_id = $1', [id]);
+    
+    // Ensuite, supprimer le projet lui-même
+    const result = await query('DELETE FROM projects WHERE id = $1 RETURNING id', [id]);
+    return (result.rowCount ?? 0) > 0;
+  }
 
   // Project Assignment methods
   async getProjectAssignments(projectId: number): Promise<ProjectAssignment[]> {

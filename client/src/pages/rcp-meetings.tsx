@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Calendar } from 'lucide-react';
+import { Calendar, Pencil, Trash2, Check, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { apiRequest } from '@/lib/queryClient';
 
 // Schéma de validation du formulaire
@@ -64,6 +65,86 @@ export default function RcpMeetings() {
     queryKey: ['/api/rcp-meetings', selectedMeetingId],
     enabled: !!selectedMeetingId,
   }) as { data: any };
+  
+  // État pour l'édition de réunion
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
+  // Formulaire d'édition
+  const editForm = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      date: '',
+      title: '',
+      description: '',
+      duration: 60,
+    },
+  });
+  
+  // Initialiser le formulaire d'édition quand une réunion est sélectionnée
+  React.useEffect(() => {
+    if (selectedMeeting) {
+      editForm.reset({
+        date: selectedMeeting.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        title: selectedMeeting.title || '',
+        description: selectedMeeting.description || '',
+        duration: selectedMeeting.duration || 60,
+      });
+    }
+  }, [selectedMeeting, editForm]);
+  
+  // Mutation pour modifier une réunion
+  const updateMutation = useMutation({
+    mutationFn: (values: FormValues) => {
+      const durationValue = typeof values.duration === 'string' 
+        ? parseInt(values.duration, 10) 
+        : values.duration;
+        
+      return apiRequest(`/api/rcp-meetings/${selectedMeetingId}`, 'PATCH', {
+        ...values,
+        duration: durationValue
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId] });
+      toast({
+        title: 'Réunion mise à jour',
+        description: 'La réunion RCP a été modifiée avec succès.',
+      });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de modifier la réunion RCP.',
+        variant: 'destructive',
+      });
+      console.error('Erreur lors de la modification de la réunion:', error);
+    },
+  });
+  
+  // Mutation pour supprimer une réunion
+  const deleteMutation = useMutation({
+    mutationFn: () => apiRequest(`/api/rcp-meetings/${selectedMeetingId}`, 'DELETE'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      toast({
+        title: 'Réunion supprimée',
+        description: 'La réunion RCP a été supprimée avec succès.',
+      });
+      setSelectedMeetingId(null);
+      setIsDeleteDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de supprimer la réunion RCP.',
+        variant: 'destructive',
+      });
+      console.error('Erreur lors de la suppression de la réunion:', error);
+    },
+  });
 
   // Formulaire pour créer une réunion
   const form = useForm<FormValues>({
