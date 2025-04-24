@@ -1,0 +1,376 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { Calendar } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { apiRequest } from '@/lib/queryClient';
+
+// Schéma de validation du formulaire
+const formSchema = z.object({
+  date: z.string().min(1, { message: 'La date est requise' }),
+  title: z.string().min(3, { message: 'Le titre doit comporter au moins 3 caractères' }),
+  description: z.string().optional(),
+  duration: z.preprocess(
+    (val) => parseInt(val as string, 10),
+    z.number().min(15, { message: 'La durée minimale est de 15 minutes' })
+  ),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+// Composant principal
+export default function RcpMeetings() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(null);
+
+  // Récupération des réunions RCP
+  const { data: meetings = [], isLoading } = useQuery({
+    queryKey: ['/api/rcp-meetings'],
+    staleTime: 60000,
+  });
+
+  // Récupération des associés
+  const { data: associates = [] } = useQuery({
+    queryKey: ['/api/associates'],
+    staleTime: 60000,
+  });
+
+  // Récupération des présences pour la réunion sélectionnée
+  const { data: attendances = [], refetch: refetchAttendances } = useQuery({
+    queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
+    enabled: !!selectedMeetingId,
+  });
+
+  // Récupération des données pour une réunion spécifique
+  const { data: selectedMeeting } = useQuery({
+    queryKey: ['/api/rcp-meetings', selectedMeetingId],
+    enabled: !!selectedMeetingId,
+  });
+
+  // Formulaire pour créer une réunion
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      date: new Date().toISOString().split('T')[0],
+      title: '',
+      description: '',
+      duration: 60,
+    },
+  });
+
+  // Mutation pour créer une nouvelle réunion
+  const createMutation = useMutation({
+    mutationFn: (values: FormValues) => apiRequest('/api/rcp-meetings', 'POST', values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      toast({
+        title: 'Réunion créée',
+        description: 'La réunion RCP a été ajoutée avec succès.',
+      });
+      form.reset();
+      setIsDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de créer la réunion RCP.',
+        variant: 'destructive',
+      });
+      console.error('Erreur lors de la création de la réunion:', error);
+    },
+  });
+
+  // Mutation pour mettre à jour les présences
+  const updateAttendanceMutation = useMutation({
+    mutationFn: ({ id, attended }: { id: number; attended: boolean }) => 
+      apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
+      toast({
+        title: 'Présence mise à jour',
+        description: 'La présence a été mise à jour avec succès.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de mettre à jour la présence.',
+        variant: 'destructive',
+      });
+      console.error('Erreur lors de la mise à jour de la présence:', error);
+    },
+  });
+
+  // Mutation pour créer une présence
+  const createAttendanceMutation = useMutation({
+    mutationFn: ({ rcpId, associateId, attended }: { rcpId: number; associateId: number; attended: boolean }) => 
+      apiRequest('/api/rcp-attendances', 'POST', { rcpId, associateId, attended }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
+      toast({
+        title: 'Présence ajoutée',
+        description: 'La présence a été ajoutée avec succès.',
+      });
+      refetchAttendances();
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'ajouter la présence.',
+        variant: 'destructive',
+      });
+      console.error('Erreur lors de l\'ajout de la présence:', error);
+    },
+  });
+
+  // Fonction pour gérer la soumission du formulaire
+  function onSubmit(values: FormValues) {
+    createMutation.mutate(values);
+  }
+
+  // Gestion des présences/absences
+  const handleAttendanceChange = (attendanceId: number | null, associateId: number, isPresent: boolean) => {
+    if (attendanceId) {
+      // Mise à jour d'une présence existante
+      updateAttendanceMutation.mutate({ id: attendanceId, attended: isPresent });
+    } else if (selectedMeetingId) {
+      // Création d'une nouvelle présence
+      createAttendanceMutation.mutate({ rcpId: selectedMeetingId, associateId, attended: isPresent });
+    }
+  };
+
+  // Fonction pour formater la date
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, 'dd MMMM yyyy', { locale: fr });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  // Vérifier si un associé est présent à la réunion sélectionnée
+  const isAssociatePresent = (associateId: number) => {
+    const attendance = attendances.find((a: any) => a.associate_id === associateId);
+    return attendance ? attendance.attended : false;
+  };
+
+  // Obtenir l'ID de présence pour un associé
+  const getAttendanceId = (associateId: number) => {
+    const attendance = attendances.find((a: any) => a.associate_id === associateId);
+    return attendance ? attendance.id : null;
+  };
+
+  return (
+    <div className="container mx-auto py-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Réunions de concertation pluriprofessionnelle (RCP)</h1>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Calendar className="mr-2 h-4 w-4" />
+              Nouvelle réunion
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ajouter une réunion RCP</DialogTitle>
+              <DialogDescription>
+                Créez une nouvelle réunion de concertation pluriprofessionnelle.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Titre</FormLabel>
+                      <FormControl>
+                        <Input placeholder="RCP Mensuelle" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Détails de la réunion..." 
+                          {...field} 
+                          value={field.value || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Durée (minutes)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="15" step="5" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? 'Création...' : 'Créer la réunion'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="md:col-span-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Liste des réunions</CardTitle>
+              <CardDescription>
+                Sélectionnez une réunion pour gérer les présences
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <p>Chargement des réunions...</p>
+              ) : meetings.length === 0 ? (
+                <p>Aucune réunion RCP n'a été créée.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {meetings.map((meeting: any) => (
+                    <li key={meeting.id}>
+                      <Button
+                        variant={selectedMeetingId === meeting.id ? "default" : "outline"}
+                        className="w-full justify-start"
+                        onClick={() => setSelectedMeetingId(meeting.id)}
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{meeting.title}</span>
+                          <span className="text-sm text-muted-foreground">{formatDate(meeting.date)}</span>
+                          <Badge variant="outline" className="mt-1">
+                            {meeting.duration || 60} min
+                          </Badge>
+                        </div>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="md:col-span-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {selectedMeeting ? (
+                  <>
+                    {selectedMeeting.title} - {formatDate(selectedMeeting.date)}
+                  </>
+                ) : (
+                  'Gestion des présences'
+                )}
+              </CardTitle>
+              <CardDescription>
+                {selectedMeeting ? (
+                  <>
+                    Durée: {selectedMeeting.duration || 60} minutes
+                    {selectedMeeting.description && (
+                      <p className="mt-2">{selectedMeeting.description}</p>
+                    )}
+                  </>
+                ) : (
+                  'Sélectionnez une réunion pour gérer les présences'
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!selectedMeetingId ? (
+                <p>Veuillez sélectionner une réunion dans la liste à gauche.</p>
+              ) : (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Liste des associés</h3>
+                  <Separator />
+                  {associates.length === 0 ? (
+                    <p>Aucun associé trouvé.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {associates.map((associate: any) => {
+                        const isPresent = isAssociatePresent(associate.id);
+                        const attendanceId = getAttendanceId(associate.id);
+                        return (
+                          <div key={associate.id} className="flex items-center justify-between p-3 border rounded-md">
+                            <div>
+                              <p className="font-medium">{associate.name}</p>
+                              <p className="text-sm text-muted-foreground">{associate.profession}</p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Label htmlFor={`attendance-${associate.id}`}>Présent</Label>
+                              <input
+                                id={`attendance-${associate.id}`}
+                                type="checkbox"
+                                checked={isPresent}
+                                onChange={(e) => handleAttendanceChange(attendanceId, associate.id, e.target.checked)}
+                                className="h-4 w-4"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

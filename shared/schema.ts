@@ -89,6 +89,7 @@ export const rcpMeetings = pgTable("rcp_meetings", {
   date: date("date").notNull(),
   title: text("title").notNull(),
   description: text("description"),
+  duration: integer("duration").default(60), // Durée en minutes (défaut 1h)
 });
 
 export const rcpAttendance = pgTable("rcp_attendance", {
@@ -117,6 +118,7 @@ export const insertRcpMeetingSchema = createInsertSchema(rcpMeetings).pick({
   date: true,
   title: true,
   description: true,
+  duration: true,
 });
 
 export const insertRcpAttendanceSchema = createInsertSchema(rcpAttendance).pick({

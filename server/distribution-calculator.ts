@@ -162,24 +162,38 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance WHERE attended = true");
       const rcpAttendances: RcpAttendance[] = rcpAttendancesResult.rows;
       
-      // 8.3 Compter les présences par associé
-      const attendanceCount: Record<number, number> = {};
+      // 8.3 Calculer le temps de présence par associé (en minutes)
+      const attendanceTimeByAssociate: Record<number, number> = {};
+      
       for (const attendance of rcpAttendances) {
-        attendanceCount[attendance.associateId] = (attendanceCount[attendance.associateId] || 0) + 1;
+        // Trouver la réunion correspondante pour obtenir la durée
+        const meeting = rcpMeetings.find(m => m.id === attendance.rcpId);
+        if (meeting) {
+          // Utilise la durée de la réunion, ou 60 minutes par défaut
+          const meetingDuration = meeting.duration || 60;
+          attendanceTimeByAssociate[attendance.associateId] = (attendanceTimeByAssociate[attendance.associateId] || 0) + meetingDuration;
+        }
       }
       
-      // 8.4 Calculer le total des présences
-      const totalAttendances = Object.values(attendanceCount).reduce((sum, count) => sum + count, 0) || 1; // Éviter division par zéro
+      console.log("Temps de présence aux RCP par associé:", attendanceTimeByAssociate);
       
-      // 8.5 Calculer la part RCP pour chaque associé
-      for (const associateId in attendanceCount) {
-        rcpShares[parseInt(associateId)] = (attendanceCount[parseInt(associateId)] / totalAttendances) * totalRcpShare;
+      // 8.4 Calculer le temps total de présence
+      const totalAttendanceTime = Object.values(attendanceTimeByAssociate).reduce((sum, time) => sum + time, 0) || 1; // Éviter division par zéro
+      
+      console.log("Temps total de présence aux RCP:", totalAttendanceTime, "minutes");
+      
+      // 8.5 Calculer la part RCP pour chaque associé basée sur le temps de présence
+      for (const associateId in attendanceTimeByAssociate) {
+        const percentageShare = attendanceTimeByAssociate[parseInt(associateId)] / totalAttendanceTime;
+        rcpShares[parseInt(associateId)] = percentageShare * totalRcpShare;
+        console.log(`Associé ${associateId}: ${attendanceTimeByAssociate[parseInt(associateId)]} minutes (${percentageShare * 100}%) = ${rcpShares[parseInt(associateId)]} €`);
       }
     } else {
       // Si pas de réunions RCP, distribuer également
       for (const associate of associates) {
         rcpShares[associate.id] = totalRcpShare / associates.length;
       }
+      console.log("Pas de réunions RCP, distribution égale:", totalRcpShare / associates.length, "€ par associé");
     }
     
     // 9. Calculer la part variable liée aux missions/projets (25% du montant net)
