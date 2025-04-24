@@ -24,7 +24,7 @@ export default function Associates() {
 
   // Count total associates, managers and non-managers
   const totalCount = associates?.length || 0;
-  const managersCount = associates?.filter((a: any) => a.isManager)?.length || 0;
+  const managersCount = associates?.filter((a: any) => a.isManager || a.is_manager)?.length || 0;
   const nonManagersCount = totalCount - managersCount;
 
   return (
@@ -99,7 +99,7 @@ export default function Associates() {
             
             <TabsContent value="managers">
               <AssociatesTable 
-                associates={associates?.filter((a: any) => a.isManager) || []} 
+                associates={associates?.filter((a: any) => a.isManager || a.is_manager) || []} 
                 isLoading={isLoading}
                 filter="managers"
               />
@@ -107,7 +107,7 @@ export default function Associates() {
             
             <TabsContent value="non-managers">
               <AssociatesTable 
-                associates={associates?.filter((a: any) => !a.isManager) || []} 
+                associates={associates?.filter((a: any) => !(a.isManager || a.is_manager)) || []} 
                 isLoading={isLoading}
                 filter="non-managers"
               />
