@@ -11,6 +11,7 @@ import Expenses from "@/pages/expenses";
 import Distribution from "@/pages/distribution";
 import Settings from "@/pages/settings";
 import RcpMeetings from "@/pages/rcp-meetings";
+import Projects from "@/pages/projects";
 import AppShell from "@/components/layout/app-shell";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/associates" component={Associates} />
       <Route path="/expenses" component={Expenses} />
       <Route path="/rcp-meetings" component={RcpMeetings} />
+      <Route path="/projects" component={Projects} />
       <Route path="/distribution" component={Distribution} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />

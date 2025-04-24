@@ -45,25 +45,25 @@ export default function RcpMeetings() {
   const { data: meetings = [], isLoading } = useQuery({
     queryKey: ['/api/rcp-meetings'],
     staleTime: 60000,
-  });
+  }) as { data: any[], isLoading: boolean };
 
   // Récupération des associés
   const { data: associates = [] } = useQuery({
     queryKey: ['/api/associates'],
     staleTime: 60000,
-  });
+  }) as { data: any[] };
 
   // Récupération des présences pour la réunion sélectionnée
   const { data: attendances = [], refetch: refetchAttendances } = useQuery({
     queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
     enabled: !!selectedMeetingId,
-  });
+  }) as { data: any[], refetch: () => void };
 
   // Récupération des données pour une réunion spécifique
   const { data: selectedMeeting } = useQuery({
     queryKey: ['/api/rcp-meetings', selectedMeetingId],
     enabled: !!selectedMeetingId,
-  });
+  }) as { data: any };
 
   // Formulaire pour créer une réunion
   const form = useForm<FormValues>({
