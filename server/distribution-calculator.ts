@@ -193,8 +193,14 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     const projects: Project[] = projectsResult.rows;
     
     // 9.3 Récupérer toutes les missions accessoires actives pour l'année courante
-    const accessoryMissionsResult = await query("SELECT * FROM accessory_missions WHERE status = 'active' AND year = $1", [currentYear]);
-    const accessoryMissions: AccessoryMission[] = accessoryMissionsResult.rows;
+    let accessoryMissions: AccessoryMission[] = [];
+    try {
+      const accessoryMissionsResult = await query("SELECT * FROM accessory_missions WHERE status = 'active' AND year = $1", [currentYear]);
+      accessoryMissions = accessoryMissionsResult.rows;
+    } catch (error) {
+      console.log("Table accessory_missions non disponible, ignorée dans le calcul");
+      // La table n'existe pas encore, ignorer pour le moment
+    }
     
     // 9.4 Vérifier s'il y a des projets ou des missions accessoires
     const hasProjectsOrMissions = projects.length > 0 || accessoryMissions.length > 0;
@@ -227,8 +233,14 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       // 9.7 Traiter les missions accessoires
       if (accessoryMissions.length > 0) {
         // Récupérer toutes les affectations de missions accessoires
-        const missionAssignmentsResult = await query("SELECT * FROM mission_assignments");
-        const missionAssignments: MissionAssignment[] = missionAssignmentsResult.rows;
+        let missionAssignments: MissionAssignment[] = [];
+        try {
+          const missionAssignmentsResult = await query("SELECT * FROM mission_assignments");
+          missionAssignments = missionAssignmentsResult.rows;
+        } catch (error) {
+          console.log("Table mission_assignments non disponible, ignorée dans le calcul");
+          // La table n'existe pas encore, ignorer pour le moment
+        }
         
         // Calculer la contribution des missions accessoires
         for (const assignment of missionAssignments) {

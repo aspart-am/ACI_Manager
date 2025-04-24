@@ -98,6 +98,32 @@ async function createTables() {
       )
     `);
     
+    // Création de la table accessory_missions (missions accessoires)
+    await query(`
+      CREATE TABLE IF NOT EXISTS accessory_missions (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        start_date DATE NOT NULL,
+        end_date DATE,
+        status VARCHAR(50) NOT NULL DEFAULT 'active',
+        budget VARCHAR(20) NOT NULL DEFAULT '0',
+        type VARCHAR(100) NOT NULL DEFAULT 'santé publique',
+        year INTEGER NOT NULL
+      )
+    `);
+    
+    // Création de la table mission_assignments
+    await query(`
+      CREATE TABLE IF NOT EXISTS mission_assignments (
+        id SERIAL PRIMARY KEY,
+        mission_id INTEGER NOT NULL REFERENCES accessory_missions(id) ON DELETE CASCADE,
+        associate_id INTEGER NOT NULL REFERENCES associates(id) ON DELETE CASCADE,
+        contribution_percentage VARCHAR(20) NOT NULL DEFAULT '100',
+        UNIQUE(mission_id, associate_id)
+      )
+    `);
+
     // Création de la table settings
     await query(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -402,6 +428,79 @@ async function insertDemoData() {
           project.weight
         ]
       );
+    }
+    
+    console.log('Insertion des données de démo pour les missions accessoires...');
+
+    // Demo Accessory Missions
+    const demoAccessoryMissions = [
+      {
+        title: "Protocole sanitaire crise COVID",
+        description: "Élaboration et mise en place du protocole sanitaire pour la MSP",
+        startDate: "2024-01-10",
+        endDate: "2024-07-31",
+        status: "active",
+        budget: "3000",
+        type: "protocole de crise",
+        year: 2024
+      },
+      {
+        title: "Initiative santé publique - vaccination",
+        description: "Campagne de vaccination et sensibilisation",
+        startDate: "2024-02-15",
+        endDate: "2024-12-31",
+        status: "active",
+        budget: "5000",
+        type: "santé publique",
+        year: 2024
+      },
+      {
+        title: "Formation interne aux nouveaux outils numériques",
+        description: "Sessions de formation aux nouveaux outils numériques de la MSP",
+        startDate: "2024-03-01",
+        endDate: "2024-06-30",
+        status: "active",
+        budget: "1800",
+        type: "formation",
+        year: 2024
+      }
+    ];
+    
+    // Insérer les missions accessoires
+    for (const mission of demoAccessoryMissions) {
+      const result = await query(
+        `INSERT INTO accessory_missions(
+          title, description, start_date, end_date, status, budget, type, year
+        ) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+        [
+          mission.title,
+          mission.description,
+          mission.startDate,
+          mission.endDate,
+          mission.status,
+          mission.budget,
+          mission.type,
+          mission.year
+        ]
+      );
+      
+      const missionId = result.rows[0].id;
+      
+      // Pour chaque mission, attribuer aléatoirement à quelques associés
+      const associates = await query('SELECT id FROM associates');
+      
+      for (const associate of associates.rows) {
+        // Attribuer la mission avec une probabilité de 60%
+        if (Math.random() < 0.6) {
+          // Contribution entre 20 et 100
+          const contribution = Math.floor(Math.random() * 80) + 20;
+          
+          await query(
+            'INSERT INTO mission_assignments(mission_id, associate_id, contribution_percentage) VALUES($1, $2, $3)',
+            [missionId, associate.id, contribution.toString()]
+          );
+        }
+      }
     }
     
     console.log('Données de démo insérées avec succès');

@@ -363,7 +363,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRevenue(id: number): Promise<boolean> {
     const result = await query('DELETE FROM revenues WHERE id = $1 RETURNING id', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // RCP Meeting methods
