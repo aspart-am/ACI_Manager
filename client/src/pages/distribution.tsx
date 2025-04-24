@@ -17,11 +17,64 @@ import {
 } from "recharts";
 import HelpModal from "@/components/modals/help-modal";
 
+// Définir une interface pour les types de données
+interface AssociateShare {
+  associateId: number;
+  associateName: string;
+  profession: string;
+  isManager: boolean;
+  baseShare: number;
+  rcpShare: number;
+  projectShare: number;
+  totalShare: number;
+  percentageShare: number;
+}
+
+interface RcpMeeting {
+  id: number;
+  title: string;
+  description: string | null;
+  date: string;
+  duration: number;
+  attendanceCount: number;
+}
+
+interface Project {
+  id: number;
+  title: string;
+  description: string | null;
+  start_date: string;
+  end_date: string | null;
+  status: string;
+  weight: string;
+  assignmentCount: number;
+}
+
+interface AttendanceRecord {
+  minutes: number;
+  percentage: number;
+}
+
+interface ProjectContribution {
+  projectCount: number;
+  percentage: number;
+}
+
+interface DistributionData {
+  totalAciRevenue: number;
+  totalRevenue: number;
+  associateShares: AssociateShare[];
+  rcpMeetings: RcpMeeting[];
+  projects: Project[];
+  rcpAttendance: Record<string, AttendanceRecord>;
+  projectContributions: Record<string, ProjectContribution>;
+}
+
 export default function Distribution() {
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   
   // Fetch distribution calculation
-  const { data: distributionData, isLoading: isLoadingDistribution, refetch } = useQuery({
+  const { data: distributionData, isLoading: isLoadingDistribution, refetch } = useQuery<DistributionData>({
     queryKey: ["/api/distribution/calculation"],
   });
 
@@ -435,14 +488,14 @@ export default function Distribution() {
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                  {distributionData.associateShares.map((item: any) => (
+                                  {distributionData?.associateShares?.map((item: any) => (
                                     <tr key={item.associateId}>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.associateName}</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {distributionData.projectContributions[item.associateId]?.projectCount || 0}
+                                        {distributionData?.projectContributions && distributionData.projectContributions[item.associateId]?.projectCount || 0}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {distributionData.projectContributions[item.associateId]?.percentage 
+                                        {distributionData?.projectContributions && distributionData.projectContributions[item.associateId]?.percentage 
                                           ? (distributionData.projectContributions[item.associateId].percentage * 100).toFixed(1) + '%' 
                                           : '0%'}
                                       </td>
