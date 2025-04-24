@@ -175,14 +175,30 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       // 8.3 Calculer le temps de présence par associé (en minutes)
       const attendanceTimeByAssociate: Record<number, number> = {};
       
+      // Analyse des structures de données
+      console.log("Types de données RCP: ", {
+        firstMeeting: rcpMeetings.length > 0 ? rcpMeetings[0] : null,
+        firstAttendance: rcpAttendances.length > 0 ? rcpAttendances[0] : null
+      });
+      
       for (const attendance of rcpAttendances) {
+        // Conversion explicite des IDs en nombres pour éviter des problèmes de type
+        const rcpIdNum = Number(attendance.rcpId);
+        const associateIdNum = Number(attendance.associateId);
+        
+        console.log(`Traitement de l'enregistrement de présence: rcpId=${rcpIdNum} (type: ${typeof rcpIdNum}), associateId=${associateIdNum}`);
+        
         // Trouver la réunion correspondante pour obtenir la durée
-        const meeting = rcpMeetings.find(m => m.id === attendance.rcpId);
+        const meeting = rcpMeetings.find(m => Number(m.id) === rcpIdNum);
+        
         if (meeting) {
+          console.log(`Réunion trouvée: ${meeting.title}, durée=${meeting.duration || 60} minutes`);
           // Utilise la durée de la réunion, ou 60 minutes par défaut
-          // La durée est ajoutée en tant que champ mais elle est en string dans la DB
-          const meetingDuration = meeting.duration ? parseInt(meeting.duration.toString()) : 60;
-          attendanceTimeByAssociate[attendance.associateId] = (attendanceTimeByAssociate[attendance.associateId] || 0) + meetingDuration;
+          const meetingDuration = meeting.duration ? Number(meeting.duration) : 60;
+          attendanceTimeByAssociate[associateIdNum] = (attendanceTimeByAssociate[associateIdNum] || 0) + meetingDuration;
+          console.log(`Temps cumulé pour l'associé ${associateIdNum}: ${attendanceTimeByAssociate[associateIdNum]} minutes`);
+        } else {
+          console.log(`Réunion non trouvée pour rcpId=${rcpIdNum}. Ids disponibles: ${rcpMeetings.map(m => m.id).join(', ')}`);
         }
       }
       
@@ -376,17 +392,24 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     
     // Mettre à jour les réunions RCP avec le nombre de participants
     for (const meeting of rcpMeetings) {
-      const attendances = rcpAttendances.filter(a => a.rcpId === meeting.id);
+      // Conversion explicite de l'ID en nombre
+      const meetingId = Number(meeting.id);
+      const attendances = rcpAttendances.filter(a => Number(a.rcpId) === meetingId);
       meeting.attendanceCount = attendances.length;
     }
     
     // Calculer les temps de présence par associé
     const attendanceByAssociate: Record<number, number> = {};
     for (const attendance of rcpAttendances) {
-      const meeting = rcpMeetings.find(m => m.id === attendance.rcpId);
+      // Conversion explicite des IDs en nombres
+      const rcpIdNum = Number(attendance.rcpId);
+      const associateIdNum = Number(attendance.associateId);
+      
+      // Trouver la réunion correspondante
+      const meeting = rcpMeetings.find(m => Number(m.id) === rcpIdNum);
       if (meeting) {
-        const meetingDuration = meeting.duration ? parseInt(meeting.duration.toString()) : 60;
-        attendanceByAssociate[attendance.associateId] = (attendanceByAssociate[attendance.associateId] || 0) + meetingDuration;
+        const meetingDuration = meeting.duration ? Number(meeting.duration) : 60;
+        attendanceByAssociate[associateIdNum] = (attendanceByAssociate[associateIdNum] || 0) + meetingDuration;
       }
     }
     
