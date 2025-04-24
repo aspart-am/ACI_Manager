@@ -664,7 +664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rcpAttendancesTrue = rcpAttendancesTrueResult.rows;
       
       // Résumé des présences par réunion
-      const attendanceByMeeting = {};
+      const attendanceByMeeting: Record<string, any> = {};
       rcpMeetings.forEach(meeting => {
         const meetingAttendances = rcpAttendances.filter(a => a.rcp_id === meeting.id);
         const presentAttendances = meetingAttendances.filter(a => a.attended === true);
@@ -677,7 +677,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      res.json({
+      // Renvoyer les données directement au format texte pour contourner le problème HTML
+      res.setHeader('Content-Type', 'application/json');
+      res.send(JSON.stringify({
         totalMeetings: rcpMeetings.length,
         totalAttendances: rcpAttendances.length,
         totalPresentAttendances: rcpAttendancesTrue.length,
@@ -685,7 +687,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rcpAttendances,
         rcpAttendancesTrue,
         attendanceByMeeting
-      });
+      }, null, 2));
     } catch (error) {
       console.error('Erreur lors du débogage des RCP:', error);
       res.status(500).json({ message: "Failed to debug RCP data" });

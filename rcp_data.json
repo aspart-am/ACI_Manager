@@ -1,0 +1,184 @@
+{
+  "totalMeetings": 6,
+  "totalAttendances": 5,
+  "totalPresentAttendances": 5,
+  "rcpMeetings": [
+    {
+      "id": 1,
+      "title": "RCP Mensuelle Janvier",
+      "description": "Réunion mensuelle de coordination pluriprofessionnelle",
+      "date": "2024-01-10T00:00:00.000Z",
+      "duration": 60
+    },
+    {
+      "id": 2,
+      "title": "RCP Mensuelle Février",
+      "description": "Réunion mensuelle de coordination pluriprofessionnelle",
+      "date": "2024-02-14T00:00:00.000Z",
+      "duration": 60
+    },
+    {
+      "id": 3,
+      "title": "RCP Mensuelle Mars",
+      "description": "Réunion mensuelle de coordination pluriprofessionnelle",
+      "date": "2024-03-13T00:00:00.000Z",
+      "duration": 60
+    },
+    {
+      "id": 4,
+      "title": "Test RCP",
+      "description": "Test description",
+      "date": "2024-04-15T00:00:00.000Z",
+      "duration": 60
+    },
+    {
+      "id": 8,
+      "title": "Test RCP API",
+      "description": "Test description",
+      "date": "2024-04-24T00:00:00.000Z",
+      "duration": 60
+    },
+    {
+      "id": 6,
+      "title": "AGO0",
+      "description": "",
+      "date": "2025-04-24T00:00:00.000Z",
+      "duration": 120
+    }
+  ],
+  "rcpAttendances": [
+    {
+      "id": 2,
+      "rcp_id": 6,
+      "associate_id": 17,
+      "attended": true
+    },
+    {
+      "id": 3,
+      "rcp_id": 8,
+      "associate_id": 17,
+      "attended": true
+    },
+    {
+      "id": 20,
+      "rcp_id": 3,
+      "associate_id": 20,
+      "attended": true
+    },
+    {
+      "id": 21,
+      "rcp_id": 3,
+      "associate_id": 25,
+      "attended": true
+    },
+    {
+      "id": 27,
+      "rcp_id": 6,
+      "associate_id": 18,
+      "attended": true
+    }
+  ],
+  "rcpAttendancesTrue": [
+    {
+      "id": 2,
+      "rcp_id": 6,
+      "associate_id": 17,
+      "attended": true
+    },
+    {
+      "id": 3,
+      "rcp_id": 8,
+      "associate_id": 17,
+      "attended": true
+    },
+    {
+      "id": 20,
+      "rcp_id": 3,
+      "associate_id": 20,
+      "attended": true
+    },
+    {
+      "id": 21,
+      "rcp_id": 3,
+      "associate_id": 25,
+      "attended": true
+    },
+    {
+      "id": 27,
+      "rcp_id": 6,
+      "associate_id": 18,
+      "attended": true
+    }
+  ],
+  "attendanceByMeeting": {
+    "1": {
+      "meetingTitle": "RCP Mensuelle Janvier",
+      "totalAttendances": 0,
+      "presentAttendances": 0,
+      "attendancesList": []
+    },
+    "2": {
+      "meetingTitle": "RCP Mensuelle Février",
+      "totalAttendances": 0,
+      "presentAttendances": 0,
+      "attendancesList": []
+    },
+    "3": {
+      "meetingTitle": "RCP Mensuelle Mars",
+      "totalAttendances": 2,
+      "presentAttendances": 2,
+      "attendancesList": [
+        {
+          "id": 20,
+          "rcp_id": 3,
+          "associate_id": 20,
+          "attended": true
+        },
+        {
+          "id": 21,
+          "rcp_id": 3,
+          "associate_id": 25,
+          "attended": true
+        }
+      ]
+    },
+    "4": {
+      "meetingTitle": "Test RCP",
+      "totalAttendances": 0,
+      "presentAttendances": 0,
+      "attendancesList": []
+    },
+    "6": {
+      "meetingTitle": "AGO0",
+      "totalAttendances": 2,
+      "presentAttendances": 2,
+      "attendancesList": [
+        {
+          "id": 2,
+          "rcp_id": 6,
+          "associate_id": 17,
+          "attended": true
+        },
+        {
+          "id": 27,
+          "rcp_id": 6,
+          "associate_id": 18,
+          "attended": true
+        }
+      ]
+    },
+    "8": {
+      "meetingTitle": "Test RCP API",
+      "totalAttendances": 1,
+      "presentAttendances": 1,
+      "attendancesList": [
+        {
+          "id": 3,
+          "rcp_id": 8,
+          "associate_id": 17,
+          "attended": true
+        }
+      ]
+    }
+  }
+}
