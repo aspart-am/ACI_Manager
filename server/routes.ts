@@ -427,6 +427,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to calculate distribution" });
     }
   });
+  
+  // Route de débogage pour les missions accessoires
+  app.get("/api/debug/missions-data", async (req, res) => {
+    try {
+      const { query } = await import('./db');
+      
+      // Récupérer les missions accessoires
+      const missionsResult = await query("SELECT * FROM accessory_missions");
+      const missions = missionsResult.rows;
+      
+      // Récupérer les assignations
+      const assignmentsResult = await query("SELECT * FROM mission_assignments");
+      const assignments = assignmentsResult.rows;
+      
+      // Vérifier les correspondances
+      const matchReport = assignments.map(assignment => {
+        const missionIdNum = Number(assignment.mission_id);
+        const matchingMission = missions.find(m => Number(m.id) === missionIdNum);
+        
+        return {
+          assignment,
+          matchFound: !!matchingMission,
+          matchDetails: matchingMission ? {
+            id: matchingMission.id,
+            title: matchingMission.title,
+            budget: matchingMission.budget
+          } : null,
+          typeofMissionId: typeof assignment.mission_id,
+          typeofMissionsIds: missions.map(m => ({ id: m.id, type: typeof m.id }))
+        };
+      });
+      
+      res.json({
+        totalMissions: missions.length,
+        totalAssignments: assignments.length,
+        missions,
+        assignments,
+        matchReport
+      });
+    } catch (error) {
+      console.error('Erreur lors du débogage des missions:', error);
+      res.status(500).json({ message: "Failed to debug missions" });
+    }
+  });
 
   // ========== ACCESSORY MISSIONS ROUTES ==========
   app.get("/api/accessory-missions", async (req, res) => {

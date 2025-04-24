@@ -80,6 +80,7 @@ interface AssociateShare {
 
 export async function calculateDistribution(): Promise<DistributionResult> {
   try {
+    console.log("======== Début du calcul de distribution ========");
     // 1. Récupérer les paramètres nécessaires
     const fixedShareResult = await query("SELECT value FROM settings WHERE key = 'fixed_revenue_share'");
     const rcpShareResult = await query("SELECT value FROM settings WHERE key = 'rcp_share'");
@@ -286,10 +287,16 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       
       // 9.8 Calculer la part projet/mission pour chaque associé
       if (totalContribution > 0) {
+        console.log("Total contribution: ", totalContribution);
+        console.log("Total project share: ", totalProjectShare);
+        console.log("Contributions by associate: ", JSON.stringify(contributionByAssociate));
+        
         for (const associateId in contributionByAssociate) {
           projectShares[parseInt(associateId)] = (contributionByAssociate[parseInt(associateId)] / totalContribution) * totalProjectShare;
+          console.log(`Associate ${associateId} gets ${projectShares[parseInt(associateId)]} (${(contributionByAssociate[parseInt(associateId)] / totalContribution) * 100}%)`);
         }
       } else {
+        console.log("WARNING: No contributions found, distributing equally");
         // Si pas de contributions, distribuer également
         for (const associate of associates) {
           projectShares[associate.id] = totalProjectShare / associates.length;
