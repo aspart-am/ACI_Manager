@@ -44,6 +44,8 @@ export interface IStorage {
   getRcpMeetings(): Promise<RcpMeeting[]>;
   getRcpMeeting(id: number): Promise<RcpMeeting | undefined>;
   createRcpMeeting(meeting: InsertRcpMeeting): Promise<RcpMeeting>;
+  updateRcpMeeting(id: number, meeting: Partial<InsertRcpMeeting>): Promise<RcpMeeting | undefined>;
+  deleteRcpMeeting(id: number): Promise<boolean>;
   
   // RCP Attendance methods
   getRcpAttendances(rcpId: number): Promise<RcpAttendance[]>;
@@ -55,6 +57,7 @@ export interface IStorage {
   getProject(id: number): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined>;
+  deleteProject(id: number): Promise<boolean>;
   
   // Project Assignment methods
   getProjectAssignments(projectId: number): Promise<ProjectAssignment[]>;
@@ -378,16 +381,65 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRcpMeeting(insertRcpMeeting: InsertRcpMeeting): Promise<RcpMeeting> {
-    const { title, description, date } = insertRcpMeeting;
+    const { title, description, date, duration } = insertRcpMeeting;
     const result = await query(
-      'INSERT INTO rcp_meetings(title, description, date) VALUES($1, $2, $3) RETURNING *',
+      'INSERT INTO rcp_meetings(title, description, date, duration) VALUES($1, $2, $3, $4) RETURNING *',
       [
         title,
         description || null,
-        date
+        date,
+        duration?.toString() || '60'
       ]
     );
     return result.rows[0];
+  }
+  
+  async updateRcpMeeting(id: number, meeting: Partial<InsertRcpMeeting>): Promise<RcpMeeting | undefined> {
+    const current = await this.getRcpMeeting(id);
+    if (!current) return undefined;
+
+    const { title, description, date, duration } = meeting;
+    
+    let queryStr = 'UPDATE rcp_meetings SET ';
+    const values: any[] = [];
+    const updates: string[] = [];
+    
+    if (title !== undefined) {
+      values.push(title);
+      updates.push(`title = $${values.length}`);
+    }
+    
+    if (description !== undefined) {
+      values.push(description);
+      updates.push(`description = $${values.length}`);
+    }
+    
+    if (date !== undefined) {
+      values.push(date);
+      updates.push(`date = $${values.length}`);
+    }
+    
+    if (duration !== undefined) {
+      values.push(duration.toString());
+      updates.push(`duration = $${values.length}`);
+    }
+    
+    if (updates.length === 0) return current;
+    
+    values.push(id);
+    queryStr += updates.join(', ') + ` WHERE id = $${values.length} RETURNING *`;
+    
+    const result = await query(queryStr, values);
+    return result.rows[0];
+  }
+
+  async deleteRcpMeeting(id: number): Promise<boolean> {
+    // D'abord, supprimer toutes les présences associées à cette réunion
+    await query('DELETE FROM rcp_attendance WHERE rcp_id = $1', [id]);
+    
+    // Ensuite, supprimer la réunion elle-même
+    const result = await query('DELETE FROM rcp_meetings WHERE id = $1 RETURNING id', [id]);
+    return (result.rowCount ?? 0) > 0;
   }
 
   // RCP Attendance methods
