@@ -239,6 +239,16 @@ export async function calculateDistribution(): Promise<DistributionResult> {
           missionAssignments = missionAssignmentsResult.rows;
           console.log("Missions accessoires trouvées:", accessoryMissions.length);
           console.log("Assignations de missions trouvées:", missionAssignments.length);
+          
+          // Debug: Afficher toutes les missions accessoires disponibles
+          accessoryMissions.forEach(mission => {
+            console.log(`Mission disponible: id=${mission.id}, title=${mission.title}, budget=${mission.budget}`);
+          });
+          
+          // Debug: Afficher toutes les assignations
+          missionAssignments.forEach(assignment => {
+            console.log(`Assignment disponible: id=${assignment.id}, missionId=${assignment.missionId}, associateId=${assignment.associateId}, contribution=${assignment.contributionPercentage}`);
+          });
         } catch (error) {
           console.log("Table mission_assignments non disponible, ignorée dans le calcul");
           // La table n'existe pas encore, ignorer pour le moment
@@ -246,7 +256,12 @@ export async function calculateDistribution(): Promise<DistributionResult> {
         
         // Calculer la contribution des missions accessoires
         for (const assignment of missionAssignments) {
-          const mission = accessoryMissions.find(m => m.id === assignment.missionId);
+          // Convertir les IDs en nombres pour s'assurer de la comparaison correcte
+          const missionIdNum = Number(assignment.missionId);
+          
+          // Trouver la mission correspondante
+          const mission = accessoryMissions.find(m => Number(m.id) === missionIdNum);
+          
           if (mission) {
             // Utiliser le budget comme poids supplémentaire pour les missions importantes
             const missionBudget = parseFloat(mission.budget || '0');
@@ -258,12 +273,13 @@ export async function calculateDistribution(): Promise<DistributionResult> {
             const effectiveBudget = Math.max(missionBudget, 1.0);
             const weightedContribution = effectiveBudget * assignmentContribution;
             
-            console.log(`Mission: ${mission.title}, AssociateID: ${assignment.associateId}, Contribution: ${assignmentContribution}, Budget: ${missionBudget}, Weighted: ${weightedContribution}`);
+            console.log(`Match trouvé! Mission: ${mission.title}, AssociateID: ${assignment.associateId}, Contribution: ${assignmentContribution}, Budget: ${missionBudget}, Weighted: ${weightedContribution}`);
             
-            contributionByAssociate[assignment.associateId] = (contributionByAssociate[assignment.associateId] || 0) + weightedContribution;
+            const associateIdNum = Number(assignment.associateId);
+            contributionByAssociate[associateIdNum] = (contributionByAssociate[associateIdNum] || 0) + weightedContribution;
             totalContribution += weightedContribution;
           } else {
-            console.log(`Warning: Mission not found for assignment: missionId=${assignment.missionId}, associateId=${assignment.associateId}`);
+            console.log(`Warning: Mission not found for assignment: missionId=${assignment.missionId} (${typeof assignment.missionId}), looking in list of ids: [${accessoryMissions.map(m => `${m.id} (${typeof m.id})`).join(', ')}]`);
           }
         }
       }
