@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { apiRequest } from '@/lib/queryClient';
@@ -246,8 +247,16 @@ export default function RcpMeetings() {
       // Mise à jour d'une présence existante
       updateAttendanceMutation.mutate({ id: attendanceId, attended: isPresent });
     } else if (selectedMeetingId) {
-      // Création d'une nouvelle présence
-      createAttendanceMutation.mutate({ rcpId: selectedMeetingId, associateId, attended: isPresent });
+      // Vérifier si l'associé est déjà assigné à cette réunion
+      const existingAttendance = attendances.find((a: any) => a.associate_id === associateId);
+      
+      if (existingAttendance) {
+        // Si l'associé est déjà assigné, mettre à jour sa présence au lieu d'en créer une nouvelle
+        updateAttendanceMutation.mutate({ id: existingAttendance.id, attended: isPresent });
+      } else {
+        // Création d'une nouvelle présence
+        createAttendanceMutation.mutate({ rcpId: selectedMeetingId, associateId, attended: isPresent });
+      }
     }
   };
 
@@ -573,14 +582,14 @@ export default function RcpMeetings() {
                               <p className="text-sm text-muted-foreground">{associate.profession}</p>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Label htmlFor={`attendance-${associate.id}`}>Présent</Label>
-                              <input
+                              <Checkbox
                                 id={`attendance-${associate.id}`}
-                                type="checkbox"
                                 checked={isPresent}
-                                onChange={(e) => handleAttendanceChange(attendanceId, associate.id, e.target.checked)}
-                                className="h-4 w-4"
+                                onCheckedChange={(checked) => handleAttendanceChange(attendanceId, associate.id, checked === true)}
                               />
+                              <Label htmlFor={`attendance-${associate.id}`}>
+                                {isPresent ? "Présent" : "Absent"}
+                              </Label>
                             </div>
                           </div>
                         );
