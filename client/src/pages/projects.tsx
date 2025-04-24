@@ -309,12 +309,12 @@ export default function Projects() {
 
   // Fonction pour vérifier si un associé est déjà assigné à un projet
   const isAssociateAssignedToProject = (associateId: number) => {
-    return projectAssignments.some((assignment: any) => assignment.associate_id === associateId);
+    return projectAssignments.some((assignment: any) => assignment.associateId === associateId);
   };
 
   // Fonction pour vérifier si un associé est déjà assigné à une mission
   const isAssociateAssignedToMission = (associateId: number) => {
-    return missionAssignments.some((assignment: any) => assignment.associate_id === associateId);
+    return missionAssignments.some((assignment: any) => assignment.associateId === associateId);
   };
 
   // Fonction pour calculer la contribution totale d'un projet
@@ -324,7 +324,7 @@ export default function Projects() {
 
   // Fonction pour calculer la contribution totale d'une mission
   const calculateTotalMissionContribution = (assignments: any[]) => {
-    return assignments.reduce((total, assignment) => total + parseFloat(assignment.contribution_percentage || '0'), 0);
+    return assignments.reduce((total, assignment) => total + parseFloat(assignment.contributionPercentage || '0'), 0);
   };
 
   return (
@@ -643,7 +643,7 @@ export default function Projects() {
                         <>
                           <div className="grid grid-cols-1 gap-2">
                             {projectAssignments.map((assignment: any) => {
-                              const associate = associates.find((a: any) => a.id === assignment.associate_id);
+                              const associate = associates.find((a: any) => a.id === assignment.associateId);
                               return (
                                 <div key={assignment.id} className="flex items-center justify-between p-3 border rounded-md">
                                   <div>
@@ -1023,7 +1023,7 @@ export default function Projects() {
                         <>
                           <div className="grid grid-cols-1 gap-2">
                             {missionAssignments.map((assignment: any) => {
-                              const associate = associates.find((a: any) => a.id === assignment.associate_id);
+                              const associate = associates.find((a: any) => a.id === assignment.associateId);
                               return (
                                 <div key={assignment.id} className="flex items-center justify-between p-3 border rounded-md">
                                   <div>
@@ -1031,7 +1031,7 @@ export default function Projects() {
                                     <p className="text-sm text-muted-foreground">{associate?.profession}</p>
                                   </div>
                                   <Badge variant="outline">
-                                    Contribution: {assignment.contribution_percentage}%
+                                    Contribution: {assignment.contributionPercentage}%
                                   </Badge>
                                 </div>
                               );
