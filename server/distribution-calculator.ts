@@ -267,16 +267,37 @@ export async function calculateDistribution(): Promise<DistributionResult> {
         const projectAssignmentsResult = await query("SELECT * FROM project_assignments");
         const projectAssignments: ProjectAssignment[] = projectAssignmentsResult.rows;
         
+        // Pour debug: Afficher l'exemple d'une affectation et ses propriétés
+        if (projectAssignments.length > 0) {
+          console.log("Structure des assignations de projet:", 
+            Object.keys(projectAssignments[0]),
+            projectAssignments[0]
+          );
+        }
+        
         // Calculer la contribution des projets
         for (const assignment of projectAssignments) {
-          const project = projects.find(p => p.id === assignment.projectId);
+          // Récupérer les noms de propriétés de manière dynamique
+          const props = Object.keys(assignment);
+          const projectIdProp = props.find(p => p.toLowerCase().includes('project_id')) || 'projectId';
+          const associateIdProp = props.find(p => p.toLowerCase().includes('associate_id')) || 'associateId';
+          const contributionProp = props.find(p => p.toLowerCase().includes('contribution')) || 'contribution';
+          
+          const projectId = Number(assignment[projectIdProp]);
+          const associateId = Number(assignment[associateIdProp]);
+          const assignmentContribution = parseFloat(String(assignment[contributionProp]) || '1.0');
+          
+          // Trouver le projet correspondant
+          const project = projects.find(p => Number(p.id) === projectId);
+          
           if (project) {
             const projectWeight = parseFloat(project.weight || '1.0');
-            const assignmentContribution = parseFloat(assignment.contribution || '1.0');
             const weightedContribution = projectWeight * assignmentContribution;
             
-            contributionByAssociate[assignment.associateId] = (contributionByAssociate[assignment.associateId] || 0) + weightedContribution;
+            contributionByAssociate[associateId] = (contributionByAssociate[associateId] || 0) + weightedContribution;
             totalContribution += weightedContribution;
+            console.log(`Affectation: projectId=${projectId}, associateId=${associateId}, contribution=${assignmentContribution}`);
+            console.log(`  Contribution pondérée: ${weightedContribution} (poids projet: ${projectWeight}, contribution: ${assignmentContribution})`);
           }
         }
       }
@@ -307,8 +328,15 @@ export async function calculateDistribution(): Promise<DistributionResult> {
         
         // Calculer la contribution des missions accessoires
         for (const assignment of missionAssignments) {
-          // Convertir les IDs en nombres pour s'assurer de la comparaison correcte
-          const missionIdNum = Number(assignment.missionId);
+          // Récupérer les noms de propriétés de manière dynamique
+          const props = Object.keys(assignment);
+          const missionIdProp = props.find(p => p.toLowerCase().includes('mission_id')) || 'missionId';
+          const associateIdProp = props.find(p => p.toLowerCase().includes('associate_id')) || 'associateId';
+          const contributionProp = props.find(p => p.toLowerCase().includes('contribution')) || 'contributionPercentage';
+          
+          // Convertir les IDs en nombres
+          const missionIdNum = Number(assignment[missionIdProp]);
+          const associateIdNum = Number(assignment[associateIdProp]);
           
           // Trouver la mission correspondante
           const mission = accessoryMissions.find(m => Number(m.id) === missionIdNum);
@@ -317,20 +345,19 @@ export async function calculateDistribution(): Promise<DistributionResult> {
             // Utiliser le budget comme poids supplémentaire pour les missions importantes
             const missionBudget = parseFloat(mission.budget || '0');
             // La contribution en pourcentage est déjà stockée (normalement entre 0 et 100)
-            const assignmentContribution = parseFloat(assignment.contributionPercentage || '100') / 100;
+            const assignmentContribution = parseFloat(String(assignment[contributionProp]) || '100') / 100;
             
             // Pondérer la contribution par le budget pour donner plus de poids aux missions importantes
             // Pour éviter des divisions par zéro, utiliser au moins 1.0 comme budget minimum
             const effectiveBudget = Math.max(missionBudget, 1.0);
             const weightedContribution = effectiveBudget * assignmentContribution;
             
-            console.log(`Match trouvé! Mission: ${mission.title}, AssociateID: ${assignment.associateId}, Contribution: ${assignmentContribution}, Budget: ${missionBudget}, Weighted: ${weightedContribution}`);
+            console.log(`Match trouvé! Mission: ${mission.title}, AssociateID: ${associateIdNum}, Contribution: ${assignmentContribution}, Budget: ${missionBudget}, Weighted: ${weightedContribution}`);
             
-            const associateIdNum = Number(assignment.associateId);
             contributionByAssociate[associateIdNum] = (contributionByAssociate[associateIdNum] || 0) + weightedContribution;
             totalContribution += weightedContribution;
           } else {
-            console.log(`Warning: Mission not found for assignment: missionId=${assignment.missionId} (${typeof assignment.missionId}), looking in list of ids: [${accessoryMissions.map(m => `${m.id} (${typeof m.id})`).join(', ')}]`);
+            console.log(`Warning: Mission not found for assignment: missionId=${missionIdNum}, looking in list of ids: [${accessoryMissions.map(m => `${m.id}`).join(', ')}]`);
           }
         }
       }
