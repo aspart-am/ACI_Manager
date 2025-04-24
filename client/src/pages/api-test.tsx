@@ -11,8 +11,9 @@ export default function ApiTest() {
     setIsLoading(true);
     setTestResults(prev => [...prev, 'Test de création de réunion RCP en cours...']);
     try {
-      const result = await testCreateRcpMeeting();
-      setTestResults(prev => [...prev, `✅ Réunion RCP créée avec succès: ID=${result.id}`]);
+      // Créer une réunion RCP avec une durée de 120 minutes (2 heures)
+      const result = await testCreateRcpMeeting(120);
+      setTestResults(prev => [...prev, `✅ Réunion RCP créée avec succès: ID=${result.id}, Durée=${result.duration} minutes`]);
       
       // Tester l'ajout d'une présence à cette réunion
       if (result.id) {

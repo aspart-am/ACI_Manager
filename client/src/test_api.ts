@@ -3,13 +3,13 @@
 import { apiRequest } from "./lib/queryClient";
 
 // Test pour créer une réunion RCP
-export async function testCreateRcpMeeting() {
+export async function testCreateRcpMeeting(customDuration: number = 60) {
   try {
     const data = {
       date: "2024-04-24",
       title: "Test RCP API",
       description: "Test description",
-      duration: 60
+      duration: customDuration.toString() // Convertir la durée en chaîne de caractères
     };
     
     const result = await apiRequest('/api/rcp-meetings', 'POST', data);
@@ -27,7 +27,7 @@ export async function testAddAssociateToProject(projectId: number, associateId: 
     const data = {
       projectId,
       associateId,
-      contribution: 15
+      contribution: '15' // Convertir en chaîne de caractères comme attendu par le schéma
     };
     
     const result = await apiRequest('/api/project-assignments', 'POST', data);
