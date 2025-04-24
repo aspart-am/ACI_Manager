@@ -170,7 +170,8 @@ export async function calculateDistribution(): Promise<DistributionResult> {
         const meeting = rcpMeetings.find(m => m.id === attendance.rcpId);
         if (meeting) {
           // Utilise la durée de la réunion, ou 60 minutes par défaut
-          const meetingDuration = meeting.duration || 60;
+          // La durée est ajoutée en tant que champ mais elle est en string dans la DB
+          const meetingDuration = meeting.duration ? parseInt(meeting.duration.toString()) : 60;
           attendanceTimeByAssociate[attendance.associateId] = (attendanceTimeByAssociate[attendance.associateId] || 0) + meetingDuration;
         }
       }

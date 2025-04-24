@@ -10,6 +10,7 @@ import Associates from "@/pages/associates";
 import Expenses from "@/pages/expenses";
 import Distribution from "@/pages/distribution";
 import Settings from "@/pages/settings";
+import RcpMeetings from "@/pages/rcp-meetings";
 import AppShell from "@/components/layout/app-shell";
 
 function Router() {

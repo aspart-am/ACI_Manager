@@ -370,6 +370,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // ========== RCP MEETINGS ROUTES ==========
+  app.get("/api/rcp-meetings", async (req, res) => {
+    try {
+      const meetings = await storage.getRcpMeetings();
+      res.json(meetings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch RCP meetings" });
+    }
+  });
+
+  app.get("/api/rcp-meetings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const meeting = await storage.getRcpMeeting(id);
+      
+      if (!meeting) {
+        return res.status(404).json({ message: "RCP meeting not found" });
+      }
+      
+      res.json(meeting);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch RCP meeting" });
+    }
+  });
+
+  app.post("/api/rcp-meetings", async (req, res) => {
+    try {
+      const validatedData = insertRcpMeetingSchema.parse(req.body);
+      const meeting = await storage.createRcpMeeting(validatedData);
+      res.status(201).json(meeting);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid RCP meeting data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create RCP meeting" });
+    }
+  });
+
+  app.get("/api/rcp-meetings/:id/attendances", async (req, res) => {
+    try {
+      const rcpId = parseInt(req.params.id);
+      const attendances = await storage.getRcpAttendances(rcpId);
+      res.json(attendances);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch RCP attendances" });
+    }
+  });
+
+  app.post("/api/rcp-attendances", async (req, res) => {
+    try {
+      const validatedData = insertRcpAttendanceSchema.parse(req.body);
+      const attendance = await storage.createRcpAttendance(validatedData);
+      res.status(201).json(attendance);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid RCP attendance data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create RCP attendance" });
+    }
+  });
+
+  app.patch("/api/rcp-attendances/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { attended } = req.body;
+      
+      if (typeof attended !== "boolean") {
+        return res.status(400).json({ message: "Attended field must be a boolean" });
+      }
+      
+      const updatedAttendance = await storage.updateRcpAttendance(id, attended);
+      
+      if (!updatedAttendance) {
+        return res.status(404).json({ message: "RCP attendance not found" });
+      }
+      
+      res.json(updatedAttendance);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update RCP attendance" });
+    }
+  });
+  
   // ========== SETTINGS ROUTES ==========
   app.get("/api/settings", async (req, res) => {
     try {
