@@ -9,6 +9,8 @@ import {
   projectAssignments, type ProjectAssignment, type InsertProjectAssignment,
   settings, type Setting, type InsertSetting
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -528,4 +530,211 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+  
+  // Associate methods
+  async getAssociates(): Promise<Associate[]> {
+    return db.select().from(associates);
+  }
+  
+  async getAssociate(id: number): Promise<Associate | undefined> {
+    const [associate] = await db.select().from(associates).where(eq(associates.id, id));
+    return associate;
+  }
+  
+  async createAssociate(insertAssociate: InsertAssociate): Promise<Associate> {
+    const [associate] = await db.insert(associates).values(insertAssociate).returning();
+    return associate;
+  }
+  
+  async updateAssociate(id: number, associate: Partial<InsertAssociate>): Promise<Associate | undefined> {
+    const [updatedAssociate] = await db
+      .update(associates)
+      .set(associate)
+      .where(eq(associates.id, id))
+      .returning();
+    return updatedAssociate;
+  }
+  
+  async deleteAssociate(id: number): Promise<boolean> {
+    const result = await db.delete(associates).where(eq(associates.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Expense methods
+  async getExpenses(): Promise<Expense[]> {
+    return db.select().from(expenses);
+  }
+  
+  async getExpense(id: number): Promise<Expense | undefined> {
+    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+    return expense;
+  }
+  
+  async createExpense(insertExpense: InsertExpense): Promise<Expense> {
+    const [expense] = await db.insert(expenses).values(insertExpense).returning();
+    return expense;
+  }
+  
+  async updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined> {
+    const [updatedExpense] = await db
+      .update(expenses)
+      .set(expense)
+      .where(eq(expenses.id, id))
+      .returning();
+    return updatedExpense;
+  }
+  
+  async deleteExpense(id: number): Promise<boolean> {
+    const result = await db.delete(expenses).where(eq(expenses.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Revenue methods
+  async getRevenues(): Promise<Revenue[]> {
+    return db.select().from(revenues);
+  }
+  
+  async getRevenue(id: number): Promise<Revenue | undefined> {
+    const [revenue] = await db.select().from(revenues).where(eq(revenues.id, id));
+    return revenue;
+  }
+  
+  async createRevenue(insertRevenue: InsertRevenue): Promise<Revenue> {
+    const [revenue] = await db.insert(revenues).values(insertRevenue).returning();
+    return revenue;
+  }
+  
+  async updateRevenue(id: number, revenue: Partial<InsertRevenue>): Promise<Revenue | undefined> {
+    const [updatedRevenue] = await db
+      .update(revenues)
+      .set(revenue)
+      .where(eq(revenues.id, id))
+      .returning();
+    return updatedRevenue;
+  }
+  
+  async deleteRevenue(id: number): Promise<boolean> {
+    const result = await db.delete(revenues).where(eq(revenues.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // RCP Meeting methods
+  async getRcpMeetings(): Promise<RcpMeeting[]> {
+    return db.select().from(rcpMeetings);
+  }
+  
+  async getRcpMeeting(id: number): Promise<RcpMeeting | undefined> {
+    const [meeting] = await db.select().from(rcpMeetings).where(eq(rcpMeetings.id, id));
+    return meeting;
+  }
+  
+  async createRcpMeeting(insertRcpMeeting: InsertRcpMeeting): Promise<RcpMeeting> {
+    const [meeting] = await db.insert(rcpMeetings).values(insertRcpMeeting).returning();
+    return meeting;
+  }
+  
+  // RCP Attendance methods
+  async getRcpAttendances(rcpId: number): Promise<RcpAttendance[]> {
+    return db.select().from(rcpAttendance).where(eq(rcpAttendance.rcpId, rcpId));
+  }
+  
+  async createRcpAttendance(insertRcpAttendance: InsertRcpAttendance): Promise<RcpAttendance> {
+    const [attendance] = await db.insert(rcpAttendance).values(insertRcpAttendance).returning();
+    return attendance;
+  }
+  
+  async updateRcpAttendance(id: number, attended: boolean): Promise<RcpAttendance | undefined> {
+    const [updatedAttendance] = await db
+      .update(rcpAttendance)
+      .set({ attended })
+      .where(eq(rcpAttendance.id, id))
+      .returning();
+    return updatedAttendance;
+  }
+  
+  // Project methods
+  async getProjects(): Promise<Project[]> {
+    return db.select().from(projects);
+  }
+  
+  async getProject(id: number): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project;
+  }
+  
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const [project] = await db.insert(projects).values(insertProject).returning();
+    return project;
+  }
+  
+  async updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined> {
+    const [updatedProject] = await db
+      .update(projects)
+      .set(project)
+      .where(eq(projects.id, id))
+      .returning();
+    return updatedProject;
+  }
+  
+  // Project Assignment methods
+  async getProjectAssignments(projectId: number): Promise<ProjectAssignment[]> {
+    return db.select().from(projectAssignments).where(eq(projectAssignments.projectId, projectId));
+  }
+  
+  async createProjectAssignment(insertProjectAssignment: InsertProjectAssignment): Promise<ProjectAssignment> {
+    const [assignment] = await db.insert(projectAssignments).values(insertProjectAssignment).returning();
+    return assignment;
+  }
+  
+  async updateProjectAssignment(id: number, contribution: number): Promise<ProjectAssignment | undefined> {
+    const [updatedAssignment] = await db
+      .update(projectAssignments)
+      .set({ contribution })
+      .where(eq(projectAssignments.id, id))
+      .returning();
+    return updatedAssignment;
+  }
+  
+  // Settings methods
+  async getSettings(): Promise<Setting[]> {
+    return db.select().from(settings);
+  }
+  
+  async getSetting(key: string): Promise<Setting | undefined> {
+    const [setting] = await db.select().from(settings).where(eq(settings.key, key));
+    return setting;
+  }
+  
+  async createSetting(insertSetting: InsertSetting): Promise<Setting> {
+    const [setting] = await db.insert(settings).values(insertSetting).returning();
+    return setting;
+  }
+  
+  async updateSetting(key: string, value: string): Promise<Setting | undefined> {
+    const [updatedSetting] = await db
+      .update(settings)
+      .set({ value })
+      .where(eq(settings.key, key))
+      .returning();
+    return updatedSetting;
+  }
+}
+
+// Initialize storage with DatabaseStorage instead of MemStorage
+export const storage = new DatabaseStorage();

@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, date, numeric } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -28,6 +29,11 @@ export const associates = pgTable("associates", {
   patientCount: integer("patient_count").default(0),
   participationWeight: numeric("participation_weight").notNull().default("1"),
 });
+
+export const associatesRelations = relations(associates, ({ many }) => ({
+  rcpAttendances: many(rcpAttendance),
+  projectAssignments: many(projectAssignments)
+}));
 
 export const insertAssociateSchema = createInsertSchema(associates).pick({
   name: true,
@@ -86,10 +92,25 @@ export const rcpMeetings = pgTable("rcp_meetings", {
 
 export const rcpAttendance = pgTable("rcp_attendance", {
   id: serial("id").primaryKey(),
-  rcpId: integer("rcp_id").notNull(),
-  associateId: integer("associate_id").notNull(),
+  rcpId: integer("rcp_id").notNull().references(() => rcpMeetings.id),
+  associateId: integer("associate_id").notNull().references(() => associates.id),
   attended: boolean("attended").notNull().default(false),
 });
+
+export const rcpMeetingsRelations = relations(rcpMeetings, ({ many }) => ({
+  attendances: many(rcpAttendance),
+}));
+
+export const rcpAttendanceRelations = relations(rcpAttendance, ({ one }) => ({
+  meeting: one(rcpMeetings, {
+    fields: [rcpAttendance.rcpId],
+    references: [rcpMeetings.id]
+  }),
+  associate: one(associates, {
+    fields: [rcpAttendance.associateId],
+    references: [associates.id]
+  })
+}));
 
 export const insertRcpMeetingSchema = createInsertSchema(rcpMeetings).pick({
   date: true,
@@ -116,10 +137,25 @@ export const projects = pgTable("projects", {
 
 export const projectAssignments = pgTable("project_assignments", {
   id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull(),
-  associateId: integer("associate_id").notNull(),
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  associateId: integer("associate_id").notNull().references(() => associates.id),
   contribution: numeric("contribution").notNull().default("1"),
 });
+
+export const projectsRelations = relations(projects, ({ many }) => ({
+  assignments: many(projectAssignments)
+}));
+
+export const projectAssignmentsRelations = relations(projectAssignments, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectAssignments.projectId],
+    references: [projects.id]
+  }),
+  associate: one(associates, {
+    fields: [projectAssignments.associateId],
+    references: [associates.id]
+  })
+}));
 
 export const insertProjectSchema = createInsertSchema(projects).pick({
   title: true,
