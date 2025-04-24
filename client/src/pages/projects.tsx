@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -81,11 +82,11 @@ export default function Projects() {
   });
 
   // Mise à jour des valeurs par défaut lorsque le projet sélectionné change
-  useState(() => {
+  useEffect(() => {
     if (selectedProjectId) {
       assignmentForm.setValue('projectId', selectedProjectId);
     }
-  });
+  }, [assignmentForm, selectedProjectId]);
 
   // Requêtes pour récupérer les données
   const { data: associates = [], isLoading: isLoadingAssociates } = useQuery({
@@ -144,7 +145,7 @@ export default function Projects() {
       assignmentForm.reset({
         projectId: selectedProjectId || undefined,
         associateId: undefined,
-        contribution: 10,
+        contribution: '10',
       });
       setIsAssignmentDialogOpen(false);
       refetchProjectAssignments();
@@ -508,25 +509,44 @@ export default function Projects() {
                                 </FormItem>
                               )}
                             />
-                            <FormField
-                              control={assignmentForm.control}
-                              name="contribution"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Contribution (%)</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      type="number" 
-                                      step="0.1" 
-                                      min="0.1" 
-                                      max="100"
-                                      {...field} 
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                            <div className="space-y-4">
+                              <div className="flex items-center space-x-2">
+                                <Switch
+                                  id="auto-distribute"
+                                  checked={autoDistribute}
+                                  onCheckedChange={setAutoDistribute}
+                                />
+                                <Label htmlFor="auto-distribute">
+                                  Distribution automatique des contributions
+                                </Label>
+                              </div>
+                              
+                              <FormField
+                                control={assignmentForm.control}
+                                name="contribution"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Contribution (%)</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        step="0.1" 
+                                        min="0.1" 
+                                        max="100"
+                                        {...field}
+                                        disabled={autoDistribute}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                    {autoDistribute && (
+                                      <p className="text-sm text-muted-foreground">
+                                        La contribution sera automatiquement calculée pour être répartie équitablement.
+                                      </p>
+                                    )}
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
                             <DialogFooter>
                               <Button type="submit" disabled={createAssignmentMutation.isPending}>
                                 {createAssignmentMutation.isPending ? 'Ajout...' : 'Ajouter l\'associé'}
@@ -557,10 +577,19 @@ export default function Projects() {
                           );
                         })}
                       </div>
-                      <div className="mt-4">
+                      <div className="mt-4 flex justify-between items-center">
                         <p className="text-sm text-muted-foreground">
                           Contribution totale: {roundToTwoDecimals(calculateTotalContribution(projectAssignments))}%
                         </p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={redistributeContributions}
+                          title="Redistribuer les contributions équitablement entre tous les associés"
+                        >
+                          <Calculator className="h-4 w-4 mr-2" />
+                          Redistribuer équitablement
+                        </Button>
                       </div>
                     </>
                   )}
