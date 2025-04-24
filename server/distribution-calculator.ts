@@ -237,6 +237,8 @@ export async function calculateDistribution(): Promise<DistributionResult> {
         try {
           const missionAssignmentsResult = await query("SELECT * FROM mission_assignments");
           missionAssignments = missionAssignmentsResult.rows;
+          console.log("Missions accessoires trouvées:", accessoryMissions.length);
+          console.log("Assignations de missions trouvées:", missionAssignments.length);
         } catch (error) {
           console.log("Table mission_assignments non disponible, ignorée dans le calcul");
           // La table n'existe pas encore, ignorer pour le moment
@@ -256,8 +258,12 @@ export async function calculateDistribution(): Promise<DistributionResult> {
             const effectiveBudget = Math.max(missionBudget, 1.0);
             const weightedContribution = effectiveBudget * assignmentContribution;
             
+            console.log(`Mission: ${mission.title}, AssociateID: ${assignment.associateId}, Contribution: ${assignmentContribution}, Budget: ${missionBudget}, Weighted: ${weightedContribution}`);
+            
             contributionByAssociate[assignment.associateId] = (contributionByAssociate[assignment.associateId] || 0) + weightedContribution;
             totalContribution += weightedContribution;
+          } else {
+            console.log(`Warning: Mission not found for assignment: missionId=${assignment.missionId}, associateId=${assignment.associateId}`);
           }
         }
       }
