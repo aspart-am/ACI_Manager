@@ -585,7 +585,10 @@ export default function RcpMeetings() {
                               <Checkbox
                                 id={`attendance-${associate.id}`}
                                 checked={isPresent}
-                                onCheckedChange={(checked) => handleAttendanceChange(attendanceId, associate.id, checked === true)}
+                                onCheckedChange={(checked) => {
+                                  console.log("Checkbox changed:", associate.id, checked);
+                                  handleAttendanceChange(attendanceId, associate.id, checked === true);
+                                }}
                               />
                               <Label htmlFor={`attendance-${associate.id}`}>
                                 {isPresent ? "Présent" : "Absent"}
