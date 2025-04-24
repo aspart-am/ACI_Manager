@@ -1,4 +1,5 @@
-import { Client } from 'pg';
+import pg from 'pg';
+const { Client } = pg;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(

@@ -66,674 +66,450 @@ export interface IStorage {
   updateSetting(key: string, value: string): Promise<Setting | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private associates: Map<number, Associate>;
-  private expenses: Map<number, Expense>;
-  private revenues: Map<number, Revenue>;
-  private rcpMeetings: Map<number, RcpMeeting>;
-  private rcpAttendances: Map<number, RcpAttendance>;
-  private projects: Map<number, Project>;
-  private projectAssignments: Map<number, ProjectAssignment>;
-  private settings: Map<number, Setting>;
-  private settingKeys: Map<string, number>;
-  
-  private userCurrentId: number;
-  private associateCurrentId: number;
-  private expenseCurrentId: number;
-  private revenueCurrentId: number;
-  private rcpMeetingCurrentId: number;
-  private rcpAttendanceCurrentId: number;
-  private projectCurrentId: number;
-  private projectAssignmentCurrentId: number;
-  private settingCurrentId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.associates = new Map();
-    this.expenses = new Map();
-    this.revenues = new Map();
-    this.rcpMeetings = new Map();
-    this.rcpAttendances = new Map();
-    this.projects = new Map();
-    this.projectAssignments = new Map();
-    this.settings = new Map();
-    this.settingKeys = new Map();
-    
-    this.userCurrentId = 1;
-    this.associateCurrentId = 1;
-    this.expenseCurrentId = 1;
-    this.revenueCurrentId = 1;
-    this.rcpMeetingCurrentId = 1;
-    this.rcpAttendanceCurrentId = 1;
-    this.projectCurrentId = 1;
-    this.projectAssignmentCurrentId = 1;
-    this.settingCurrentId = 1;
-    
-    // Initialize default settings
-    this.initializeDefaultSettings();
-    // Initialize default data for demo
-    this.initializeDemoData();
-  }
-  
-  // Initialize default settings
-  private initializeDefaultSettings() {
-    const defaultSettings: InsertSetting[] = [
-      {
-        key: "aci_manager_weight",
-        value: "1.5",
-        category: "distribution",
-        description: "Weight factor for managers in ACI distribution"
-      },
-      {
-        key: "rcp_attendance_weight",
-        value: "0.8",
-        category: "distribution",
-        description: "Weight factor for RCP meeting attendance in ACI distribution"
-      },
-      {
-        key: "project_contribution_weight",
-        value: "1.2",
-        category: "distribution",
-        description: "Weight factor for project contributions in ACI distribution"
-      }
-    ];
-    
-    defaultSettings.forEach(setting => {
-      this.createSetting(setting);
-    });
-  }
-  
-  // Initialize demo data
-  private initializeDemoData() {
-    // Demo associates
-    const demoAssociates: InsertAssociate[] = [
-      {
-        name: "Dr. Rousseau",
-        profession: "Médecin généraliste",
-        isManager: true,
-        joinDate: new Date("2020-01-01"),
-        patientCount: 980,
-        participationWeight: 1.5
-      },
-      {
-        name: "Dr. Martin",
-        profession: "Médecin généraliste",
-        isManager: false,
-        joinDate: new Date("2020-03-15"),
-        patientCount: 850,
-        participationWeight: 1.0
-      },
-      {
-        name: "Mme. Dupont",
-        profession: "Infirmière",
-        isManager: false,
-        joinDate: new Date("2021-06-01"),
-        patientCount: 0,
-        participationWeight: 1.0
-      },
-      {
-        name: "M. Bernard",
-        profession: "Kinésithérapeute",
-        isManager: true,
-        joinDate: new Date("2022-01-15"),
-        patientCount: 0,
-        participationWeight: 1.3
-      }
-    ];
-    
-    demoAssociates.forEach(associate => {
-      this.createAssociate(associate);
-    });
-    
-    // Demo revenues
-    const demoRevenues: InsertRevenue[] = [
-      {
-        source: "CPAM",
-        description: "1er versement ACI",
-        amount: 19125,
-        date: new Date("2024-01-15"),
-        category: "ACI"
-      },
-      {
-        source: "CPAM",
-        description: "2ème versement ACI",
-        amount: 19125,
-        date: new Date("2024-04-15"),
-        category: "ACI"
-      },
-      {
-        source: "CPAM",
-        description: "3ème versement ACI",
-        amount: 19125,
-        date: new Date("2024-07-15"),
-        category: "ACI"
-      },
-      {
-        source: "ARS",
-        description: "Subvention projet prévention",
-        amount: 7500,
-        date: new Date("2024-02-10"),
-        category: "Subvention"
-      }
-    ];
-    
-    demoRevenues.forEach(revenue => {
-      this.createRevenue(revenue);
-    });
-    
-    // Demo expenses
-    const demoExpenses: InsertExpense[] = [
-      {
-        category: "Loyer",
-        description: "Loyer mensuel",
-        amount: 2500,
-        date: new Date("2024-01-01"),
-        isRecurring: true,
-        frequency: "monthly"
-      },
-      {
-        category: "Électricité",
-        description: "Facture électricité",
-        amount: 350,
-        date: new Date("2024-01-15"),
-        isRecurring: true,
-        frequency: "monthly"
-      },
-      {
-        category: "Matériel médical",
-        description: "Achat matériel de diagnostic",
-        amount: 1200,
-        date: new Date("2024-03-10"),
-        isRecurring: false
-      },
-      {
-        category: "Logiciel",
-        description: "Abonnement logiciel de gestion",
-        amount: 180,
-        date: new Date("2024-01-05"),
-        isRecurring: true,
-        frequency: "monthly"
-      }
-    ];
-    
-    demoExpenses.forEach(expense => {
-      this.createExpense(expense);
-    });
-    
-    // Demo RCP meetings
-    const demoRcpMeetings: InsertRcpMeeting[] = [
-      {
-        date: new Date("2024-01-10"),
-        title: "RCP Mensuelle Janvier",
-        description: "Réunion mensuelle de coordination pluriprofessionnelle"
-      },
-      {
-        date: new Date("2024-02-14"),
-        title: "RCP Mensuelle Février",
-        description: "Réunion mensuelle de coordination pluriprofessionnelle"
-      },
-      {
-        date: new Date("2024-03-13"),
-        title: "RCP Mensuelle Mars",
-        description: "Réunion mensuelle de coordination pluriprofessionnelle"
-      }
-    ];
-    
-    demoRcpMeetings.forEach(meeting => {
-      this.createRcpMeeting(meeting);
-    });
-    
-    // Demo Projects
-    const demoProjects: InsertProject[] = [
-      {
-        title: "Prévention Diabète",
-        description: "Projet de prévention du diabète pour les patients à risque",
-        startDate: new Date("2024-02-01"),
-        endDate: new Date("2024-08-31"),
-        status: "active",
-        weight: 1.5
-      },
-      {
-        title: "Téléconsultation",
-        description: "Mise en place d'un système de téléconsultation",
-        startDate: new Date("2024-01-15"),
-        endDate: new Date("2024-06-30"),
-        status: "active",
-        weight: 1.2
-      }
-    ];
-    
-    demoProjects.forEach(project => {
-      this.createProject(project);
-    });
-  }
-
-  // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
-  }
-  
-  // Associate methods
-  async getAssociates(): Promise<Associate[]> {
-    return Array.from(this.associates.values());
-  }
-  
-  async getAssociate(id: number): Promise<Associate | undefined> {
-    return this.associates.get(id);
-  }
-  
-  async createAssociate(insertAssociate: InsertAssociate): Promise<Associate> {
-    const id = this.associateCurrentId++;
-    const associate: Associate = { ...insertAssociate, id };
-    this.associates.set(id, associate);
-    return associate;
-  }
-  
-  async updateAssociate(id: number, associate: Partial<InsertAssociate>): Promise<Associate | undefined> {
-    const existingAssociate = this.associates.get(id);
-    if (!existingAssociate) return undefined;
-    
-    const updatedAssociate = { ...existingAssociate, ...associate };
-    this.associates.set(id, updatedAssociate);
-    return updatedAssociate;
-  }
-  
-  async deleteAssociate(id: number): Promise<boolean> {
-    return this.associates.delete(id);
-  }
-  
-  // Expense methods
-  async getExpenses(): Promise<Expense[]> {
-    return Array.from(this.expenses.values());
-  }
-  
-  async getExpense(id: number): Promise<Expense | undefined> {
-    return this.expenses.get(id);
-  }
-  
-  async createExpense(insertExpense: InsertExpense): Promise<Expense> {
-    const id = this.expenseCurrentId++;
-    const expense: Expense = { ...insertExpense, id };
-    this.expenses.set(id, expense);
-    return expense;
-  }
-  
-  async updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined> {
-    const existingExpense = this.expenses.get(id);
-    if (!existingExpense) return undefined;
-    
-    const updatedExpense = { ...existingExpense, ...expense };
-    this.expenses.set(id, updatedExpense);
-    return updatedExpense;
-  }
-  
-  async deleteExpense(id: number): Promise<boolean> {
-    return this.expenses.delete(id);
-  }
-  
-  // Revenue methods
-  async getRevenues(): Promise<Revenue[]> {
-    return Array.from(this.revenues.values());
-  }
-  
-  async getRevenue(id: number): Promise<Revenue | undefined> {
-    return this.revenues.get(id);
-  }
-  
-  async createRevenue(insertRevenue: InsertRevenue): Promise<Revenue> {
-    const id = this.revenueCurrentId++;
-    const revenue: Revenue = { ...insertRevenue, id };
-    this.revenues.set(id, revenue);
-    return revenue;
-  }
-  
-  async updateRevenue(id: number, revenue: Partial<InsertRevenue>): Promise<Revenue | undefined> {
-    const existingRevenue = this.revenues.get(id);
-    if (!existingRevenue) return undefined;
-    
-    const updatedRevenue = { ...existingRevenue, ...revenue };
-    this.revenues.set(id, updatedRevenue);
-    return updatedRevenue;
-  }
-  
-  async deleteRevenue(id: number): Promise<boolean> {
-    return this.revenues.delete(id);
-  }
-  
-  // RCP Meeting methods
-  async getRcpMeetings(): Promise<RcpMeeting[]> {
-    return Array.from(this.rcpMeetings.values());
-  }
-  
-  async getRcpMeeting(id: number): Promise<RcpMeeting | undefined> {
-    return this.rcpMeetings.get(id);
-  }
-  
-  async createRcpMeeting(insertRcpMeeting: InsertRcpMeeting): Promise<RcpMeeting> {
-    const id = this.rcpMeetingCurrentId++;
-    const rcpMeeting: RcpMeeting = { ...insertRcpMeeting, id };
-    this.rcpMeetings.set(id, rcpMeeting);
-    return rcpMeeting;
-  }
-  
-  // RCP Attendance methods
-  async getRcpAttendances(rcpId: number): Promise<RcpAttendance[]> {
-    return Array.from(this.rcpAttendances.values()).filter(a => a.rcpId === rcpId);
-  }
-  
-  async createRcpAttendance(insertRcpAttendance: InsertRcpAttendance): Promise<RcpAttendance> {
-    const id = this.rcpAttendanceCurrentId++;
-    const rcpAttendance: RcpAttendance = { ...insertRcpAttendance, id };
-    this.rcpAttendances.set(id, rcpAttendance);
-    return rcpAttendance;
-  }
-  
-  async updateRcpAttendance(id: number, attended: boolean): Promise<RcpAttendance | undefined> {
-    const existingAttendance = this.rcpAttendances.get(id);
-    if (!existingAttendance) return undefined;
-    
-    const updatedAttendance = { ...existingAttendance, attended };
-    this.rcpAttendances.set(id, updatedAttendance);
-    return updatedAttendance;
-  }
-  
-  // Project methods
-  async getProjects(): Promise<Project[]> {
-    return Array.from(this.projects.values());
-  }
-  
-  async getProject(id: number): Promise<Project | undefined> {
-    return this.projects.get(id);
-  }
-  
-  async createProject(insertProject: InsertProject): Promise<Project> {
-    const id = this.projectCurrentId++;
-    const project: Project = { ...insertProject, id };
-    this.projects.set(id, project);
-    return project;
-  }
-  
-  async updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined> {
-    const existingProject = this.projects.get(id);
-    if (!existingProject) return undefined;
-    
-    const updatedProject = { ...existingProject, ...project };
-    this.projects.set(id, updatedProject);
-    return updatedProject;
-  }
-  
-  // Project Assignment methods
-  async getProjectAssignments(projectId: number): Promise<ProjectAssignment[]> {
-    return Array.from(this.projectAssignments.values()).filter(a => a.projectId === projectId);
-  }
-  
-  async createProjectAssignment(insertProjectAssignment: InsertProjectAssignment): Promise<ProjectAssignment> {
-    const id = this.projectAssignmentCurrentId++;
-    const projectAssignment: ProjectAssignment = { ...insertProjectAssignment, id };
-    this.projectAssignments.set(id, projectAssignment);
-    return projectAssignment;
-  }
-  
-  async updateProjectAssignment(id: number, contribution: number): Promise<ProjectAssignment | undefined> {
-    const existingAssignment = this.projectAssignments.get(id);
-    if (!existingAssignment) return undefined;
-    
-    const updatedAssignment = { ...existingAssignment, contribution };
-    this.projectAssignments.set(id, updatedAssignment);
-    return updatedAssignment;
-  }
-  
-  // Settings methods
-  async getSettings(): Promise<Setting[]> {
-    return Array.from(this.settings.values());
-  }
-  
-  async getSetting(key: string): Promise<Setting | undefined> {
-    const id = this.settingKeys.get(key);
-    if (!id) return undefined;
-    return this.settings.get(id);
-  }
-  
-  async createSetting(insertSetting: InsertSetting): Promise<Setting> {
-    const id = this.settingCurrentId++;
-    const setting: Setting = { ...insertSetting, id };
-    this.settings.set(id, setting);
-    this.settingKeys.set(setting.key, id);
-    return setting;
-  }
-  
-  async updateSetting(key: string, value: string): Promise<Setting | undefined> {
-    const id = this.settingKeys.get(key);
-    if (!id) return undefined;
-    
-    const existingSetting = this.settings.get(id);
-    if (!existingSetting) return undefined;
-    
-    const updatedSetting = { ...existingSetting, value };
-    this.settings.set(id, updatedSetting);
-    return updatedSetting;
-  }
-}
-
 export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    const result = await query('SELECT * FROM users WHERE id = $1', [id]);
+    return result.rows[0] || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    const result = await query('SELECT * FROM users WHERE username = $1', [username]);
+    return result.rows[0] || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+    const { username, password, fullName, role } = insertUser;
+    const result = await query(
+      'INSERT INTO users(username, password, full_name, role) VALUES($1, $2, $3, $4) RETURNING *',
+      [username, password, fullName, role || 'user']
+    );
+    return result.rows[0];
   }
-  
+
   // Associate methods
   async getAssociates(): Promise<Associate[]> {
-    return db.select().from(associates);
+    const result = await query('SELECT * FROM associates ORDER BY name');
+    return result.rows;
   }
-  
+
   async getAssociate(id: number): Promise<Associate | undefined> {
-    const [associate] = await db.select().from(associates).where(eq(associates.id, id));
-    return associate;
+    const result = await query('SELECT * FROM associates WHERE id = $1', [id]);
+    return result.rows[0] || undefined;
   }
-  
+
   async createAssociate(insertAssociate: InsertAssociate): Promise<Associate> {
-    const [associate] = await db.insert(associates).values(insertAssociate).returning();
-    return associate;
+    const { name, profession, isManager, joinDate, patientCount, participationWeight } = insertAssociate;
+    const result = await query(
+      'INSERT INTO associates(name, profession, is_manager, join_date, patient_count, participation_weight) VALUES($1, $2, $3, $4, $5, $6) RETURNING *',
+      [
+        name, 
+        profession, 
+        isManager ?? false, 
+        joinDate, 
+        patientCount ?? null, 
+        participationWeight ?? '1.0'
+      ]
+    );
+    return result.rows[0];
   }
-  
+
   async updateAssociate(id: number, associate: Partial<InsertAssociate>): Promise<Associate | undefined> {
-    const [updatedAssociate] = await db
-      .update(associates)
-      .set(associate)
-      .where(eq(associates.id, id))
-      .returning();
-    return updatedAssociate;
+    const current = await this.getAssociate(id);
+    if (!current) return undefined;
+
+    const { name, profession, isManager, joinDate, patientCount, participationWeight } = associate;
+    
+    let queryStr = 'UPDATE associates SET ';
+    const values: any[] = [];
+    const updates: string[] = [];
+    
+    if (name !== undefined) {
+      values.push(name);
+      updates.push(`name = $${values.length}`);
+    }
+    
+    if (profession !== undefined) {
+      values.push(profession);
+      updates.push(`profession = $${values.length}`);
+    }
+    
+    if (isManager !== undefined) {
+      values.push(isManager);
+      updates.push(`is_manager = $${values.length}`);
+    }
+    
+    if (joinDate !== undefined) {
+      values.push(joinDate);
+      updates.push(`join_date = $${values.length}`);
+    }
+    
+    if (patientCount !== undefined) {
+      values.push(patientCount);
+      updates.push(`patient_count = $${values.length}`);
+    }
+    
+    if (participationWeight !== undefined) {
+      values.push(participationWeight);
+      updates.push(`participation_weight = $${values.length}`);
+    }
+    
+    if (updates.length === 0) return current;
+    
+    values.push(id);
+    queryStr += updates.join(', ') + ` WHERE id = $${values.length} RETURNING *`;
+    
+    const result = await query(queryStr, values);
+    return result.rows[0];
   }
-  
+
   async deleteAssociate(id: number): Promise<boolean> {
-    const result = await db.delete(associates).where(eq(associates.id, id));
+    const result = await query('DELETE FROM associates WHERE id = $1 RETURNING id', [id]);
     return result.rowCount > 0;
   }
-  
+
   // Expense methods
   async getExpenses(): Promise<Expense[]> {
-    return db.select().from(expenses);
+    const result = await query('SELECT * FROM expenses ORDER BY date DESC');
+    return result.rows;
   }
-  
+
   async getExpense(id: number): Promise<Expense | undefined> {
-    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
-    return expense;
+    const result = await query('SELECT * FROM expenses WHERE id = $1', [id]);
+    return result.rows[0] || undefined;
   }
-  
+
   async createExpense(insertExpense: InsertExpense): Promise<Expense> {
-    const [expense] = await db.insert(expenses).values(insertExpense).returning();
-    return expense;
+    const { category, description, amount, date, isRecurring, frequency } = insertExpense;
+    const result = await query(
+      'INSERT INTO expenses(category, description, amount, date, is_recurring, frequency) VALUES($1, $2, $3, $4, $5, $6) RETURNING *',
+      [
+        category,
+        description,
+        amount,
+        date,
+        isRecurring ?? false,
+        frequency || null
+      ]
+    );
+    return result.rows[0];
   }
-  
+
   async updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined> {
-    const [updatedExpense] = await db
-      .update(expenses)
-      .set(expense)
-      .where(eq(expenses.id, id))
-      .returning();
-    return updatedExpense;
+    const current = await this.getExpense(id);
+    if (!current) return undefined;
+
+    const { category, description, amount, date, isRecurring, frequency } = expense;
+    
+    let queryStr = 'UPDATE expenses SET ';
+    const values: any[] = [];
+    const updates: string[] = [];
+    
+    if (category !== undefined) {
+      values.push(category);
+      updates.push(`category = $${values.length}`);
+    }
+    
+    if (description !== undefined) {
+      values.push(description);
+      updates.push(`description = $${values.length}`);
+    }
+    
+    if (amount !== undefined) {
+      values.push(amount);
+      updates.push(`amount = $${values.length}`);
+    }
+    
+    if (date !== undefined) {
+      values.push(date);
+      updates.push(`date = $${values.length}`);
+    }
+    
+    if (isRecurring !== undefined) {
+      values.push(isRecurring);
+      updates.push(`is_recurring = $${values.length}`);
+    }
+    
+    if (frequency !== undefined) {
+      values.push(frequency);
+      updates.push(`frequency = $${values.length}`);
+    }
+    
+    if (updates.length === 0) return current;
+    
+    values.push(id);
+    queryStr += updates.join(', ') + ` WHERE id = $${values.length} RETURNING *`;
+    
+    const result = await query(queryStr, values);
+    return result.rows[0];
   }
-  
+
   async deleteExpense(id: number): Promise<boolean> {
-    const result = await db.delete(expenses).where(eq(expenses.id, id));
+    const result = await query('DELETE FROM expenses WHERE id = $1 RETURNING id', [id]);
     return result.rowCount > 0;
   }
-  
+
   // Revenue methods
   async getRevenues(): Promise<Revenue[]> {
-    return db.select().from(revenues);
+    const result = await query('SELECT * FROM revenues ORDER BY date DESC');
+    return result.rows;
   }
-  
+
   async getRevenue(id: number): Promise<Revenue | undefined> {
-    const [revenue] = await db.select().from(revenues).where(eq(revenues.id, id));
-    return revenue;
+    const result = await query('SELECT * FROM revenues WHERE id = $1', [id]);
+    return result.rows[0] || undefined;
   }
-  
+
   async createRevenue(insertRevenue: InsertRevenue): Promise<Revenue> {
-    const [revenue] = await db.insert(revenues).values(insertRevenue).returning();
-    return revenue;
+    const { source, description, amount, date, category } = insertRevenue;
+    const result = await query(
+      'INSERT INTO revenues(source, description, amount, date, category) VALUES($1, $2, $3, $4, $5) RETURNING *',
+      [
+        source,
+        description,
+        amount,
+        date,
+        category
+      ]
+    );
+    return result.rows[0];
   }
-  
+
   async updateRevenue(id: number, revenue: Partial<InsertRevenue>): Promise<Revenue | undefined> {
-    const [updatedRevenue] = await db
-      .update(revenues)
-      .set(revenue)
-      .where(eq(revenues.id, id))
-      .returning();
-    return updatedRevenue;
+    const current = await this.getRevenue(id);
+    if (!current) return undefined;
+
+    const { source, description, amount, date, category } = revenue;
+    
+    let queryStr = 'UPDATE revenues SET ';
+    const values: any[] = [];
+    const updates: string[] = [];
+    
+    if (source !== undefined) {
+      values.push(source);
+      updates.push(`source = $${values.length}`);
+    }
+    
+    if (description !== undefined) {
+      values.push(description);
+      updates.push(`description = $${values.length}`);
+    }
+    
+    if (amount !== undefined) {
+      values.push(amount);
+      updates.push(`amount = $${values.length}`);
+    }
+    
+    if (date !== undefined) {
+      values.push(date);
+      updates.push(`date = $${values.length}`);
+    }
+    
+    if (category !== undefined) {
+      values.push(category);
+      updates.push(`category = $${values.length}`);
+    }
+    
+    if (updates.length === 0) return current;
+    
+    values.push(id);
+    queryStr += updates.join(', ') + ` WHERE id = $${values.length} RETURNING *`;
+    
+    const result = await query(queryStr, values);
+    return result.rows[0];
   }
-  
+
   async deleteRevenue(id: number): Promise<boolean> {
-    const result = await db.delete(revenues).where(eq(revenues.id, id));
+    const result = await query('DELETE FROM revenues WHERE id = $1 RETURNING id', [id]);
     return result.rowCount > 0;
   }
-  
+
   // RCP Meeting methods
   async getRcpMeetings(): Promise<RcpMeeting[]> {
-    return db.select().from(rcpMeetings);
+    const result = await query('SELECT * FROM rcp_meetings ORDER BY date DESC');
+    return result.rows;
   }
-  
+
   async getRcpMeeting(id: number): Promise<RcpMeeting | undefined> {
-    const [meeting] = await db.select().from(rcpMeetings).where(eq(rcpMeetings.id, id));
-    return meeting;
+    const result = await query('SELECT * FROM rcp_meetings WHERE id = $1', [id]);
+    return result.rows[0] || undefined;
   }
-  
+
   async createRcpMeeting(insertRcpMeeting: InsertRcpMeeting): Promise<RcpMeeting> {
-    const [meeting] = await db.insert(rcpMeetings).values(insertRcpMeeting).returning();
-    return meeting;
+    const { title, description, date } = insertRcpMeeting;
+    const result = await query(
+      'INSERT INTO rcp_meetings(title, description, date) VALUES($1, $2, $3) RETURNING *',
+      [
+        title,
+        description || null,
+        date
+      ]
+    );
+    return result.rows[0];
   }
-  
+
   // RCP Attendance methods
   async getRcpAttendances(rcpId: number): Promise<RcpAttendance[]> {
-    return db.select().from(rcpAttendance).where(eq(rcpAttendance.rcpId, rcpId));
+    const result = await query('SELECT * FROM rcp_attendance WHERE rcp_id = $1', [rcpId]);
+    return result.rows;
   }
-  
+
   async createRcpAttendance(insertRcpAttendance: InsertRcpAttendance): Promise<RcpAttendance> {
-    const [attendance] = await db.insert(rcpAttendance).values(insertRcpAttendance).returning();
-    return attendance;
+    const { rcpId, associateId, attended } = insertRcpAttendance;
+    const result = await query(
+      'INSERT INTO rcp_attendance(rcp_id, associate_id, attended) VALUES($1, $2, $3) RETURNING *',
+      [
+        rcpId,
+        associateId,
+        attended ?? false
+      ]
+    );
+    return result.rows[0];
   }
-  
+
   async updateRcpAttendance(id: number, attended: boolean): Promise<RcpAttendance | undefined> {
-    const [updatedAttendance] = await db
-      .update(rcpAttendance)
-      .set({ attended })
-      .where(eq(rcpAttendance.id, id))
-      .returning();
-    return updatedAttendance;
+    const result = await query(
+      'UPDATE rcp_attendance SET attended = $1 WHERE id = $2 RETURNING *',
+      [attended, id]
+    );
+    return result.rows[0] || undefined;
   }
-  
+
   // Project methods
   async getProjects(): Promise<Project[]> {
-    return db.select().from(projects);
+    const result = await query('SELECT * FROM projects ORDER BY start_date DESC');
+    return result.rows;
   }
-  
+
   async getProject(id: number): Promise<Project | undefined> {
-    const [project] = await db.select().from(projects).where(eq(projects.id, id));
-    return project;
+    const result = await query('SELECT * FROM projects WHERE id = $1', [id]);
+    return result.rows[0] || undefined;
   }
-  
+
   async createProject(insertProject: InsertProject): Promise<Project> {
-    const [project] = await db.insert(projects).values(insertProject).returning();
-    return project;
+    const { title, description, startDate, endDate, status, weight } = insertProject;
+    const result = await query(
+      'INSERT INTO projects(title, description, start_date, end_date, status, weight) VALUES($1, $2, $3, $4, $5, $6) RETURNING *',
+      [
+        title,
+        description || null,
+        startDate,
+        endDate || null,
+        status ?? 'active',
+        weight ?? '1.0'
+      ]
+    );
+    return result.rows[0];
   }
-  
+
   async updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined> {
-    const [updatedProject] = await db
-      .update(projects)
-      .set(project)
-      .where(eq(projects.id, id))
-      .returning();
-    return updatedProject;
+    const current = await this.getProject(id);
+    if (!current) return undefined;
+
+    const { title, description, startDate, endDate, status, weight } = project;
+    
+    let queryStr = 'UPDATE projects SET ';
+    const values: any[] = [];
+    const updates: string[] = [];
+    
+    if (title !== undefined) {
+      values.push(title);
+      updates.push(`title = $${values.length}`);
+    }
+    
+    if (description !== undefined) {
+      values.push(description);
+      updates.push(`description = $${values.length}`);
+    }
+    
+    if (startDate !== undefined) {
+      values.push(startDate);
+      updates.push(`start_date = $${values.length}`);
+    }
+    
+    if (endDate !== undefined) {
+      values.push(endDate);
+      updates.push(`end_date = $${values.length}`);
+    }
+    
+    if (status !== undefined) {
+      values.push(status);
+      updates.push(`status = $${values.length}`);
+    }
+    
+    if (weight !== undefined) {
+      values.push(weight);
+      updates.push(`weight = $${values.length}`);
+    }
+    
+    if (updates.length === 0) return current;
+    
+    values.push(id);
+    queryStr += updates.join(', ') + ` WHERE id = $${values.length} RETURNING *`;
+    
+    const result = await query(queryStr, values);
+    return result.rows[0];
   }
-  
+
   // Project Assignment methods
   async getProjectAssignments(projectId: number): Promise<ProjectAssignment[]> {
-    return db.select().from(projectAssignments).where(eq(projectAssignments.projectId, projectId));
+    const result = await query('SELECT * FROM project_assignments WHERE project_id = $1', [projectId]);
+    return result.rows;
   }
-  
+
   async createProjectAssignment(insertProjectAssignment: InsertProjectAssignment): Promise<ProjectAssignment> {
-    const [assignment] = await db.insert(projectAssignments).values(insertProjectAssignment).returning();
-    return assignment;
+    const { projectId, associateId, contribution } = insertProjectAssignment;
+    const result = await query(
+      'INSERT INTO project_assignments(project_id, associate_id, contribution) VALUES($1, $2, $3) RETURNING *',
+      [
+        projectId,
+        associateId,
+        contribution ?? '1.0'
+      ]
+    );
+    return result.rows[0];
   }
-  
+
   async updateProjectAssignment(id: number, contribution: number): Promise<ProjectAssignment | undefined> {
-    const [updatedAssignment] = await db
-      .update(projectAssignments)
-      .set({ contribution })
-      .where(eq(projectAssignments.id, id))
-      .returning();
-    return updatedAssignment;
+    const result = await query(
+      'UPDATE project_assignments SET contribution = $1 WHERE id = $2 RETURNING *',
+      [contribution.toString(), id]
+    );
+    return result.rows[0] || undefined;
   }
-  
+
   // Settings methods
   async getSettings(): Promise<Setting[]> {
-    return db.select().from(settings);
+    const result = await query('SELECT * FROM settings ORDER BY category, key');
+    return result.rows;
   }
-  
+
   async getSetting(key: string): Promise<Setting | undefined> {
-    const [setting] = await db.select().from(settings).where(eq(settings.key, key));
-    return setting;
+    const result = await query('SELECT * FROM settings WHERE key = $1', [key]);
+    return result.rows[0] || undefined;
   }
-  
+
   async createSetting(insertSetting: InsertSetting): Promise<Setting> {
-    const [setting] = await db.insert(settings).values(insertSetting).returning();
-    return setting;
+    const { key, value, category, description } = insertSetting;
+    const result = await query(
+      'INSERT INTO settings(key, value, category, description) VALUES($1, $2, $3, $4) RETURNING *',
+      [
+        key,
+        value,
+        category,
+        description || null
+      ]
+    );
+    return result.rows[0];
   }
-  
+
   async updateSetting(key: string, value: string): Promise<Setting | undefined> {
-    const [updatedSetting] = await db
-      .update(settings)
-      .set({ value })
-      .where(eq(settings.key, key))
-      .returning();
-    return updatedSetting;
+    const result = await query(
+      'UPDATE settings SET value = $1 WHERE key = $2 RETURNING *',
+      [value, key]
+    );
+    return result.rows[0] || undefined;
   }
 }
 
-// Initialize storage with DatabaseStorage instead of MemStorage
 export const storage = new DatabaseStorage();
