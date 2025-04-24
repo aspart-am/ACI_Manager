@@ -259,7 +259,13 @@ export default function RcpMeetings() {
                     <FormItem>
                       <FormLabel>Durée (minutes)</FormLabel>
                       <FormControl>
-                        <Input type="number" min="15" step="5" {...field} />
+                        <Input 
+                          type="number" 
+                          min="15" 
+                          step="5" 
+                          value={field.value?.toString() || "60"}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 60)}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
