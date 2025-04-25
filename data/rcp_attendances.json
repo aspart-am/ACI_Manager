@@ -52,5 +52,17 @@
     "rcpId": 3,
     "associateId": 11,
     "attended": true
+  },
+  {
+    "id": 10,
+    "rcpId": 1,
+    "associateId": 13,
+    "attended": true
+  },
+  {
+    "id": 11,
+    "rcpId": 1,
+    "associateId": 14,
+    "attended": true
   }
 ]
