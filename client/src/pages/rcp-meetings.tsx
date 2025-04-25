@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Calendar, Pencil, Trash2, Check, X, Clock, Users, Info, AlertCircle } from 'lucide-react';
+import { Calendar, Pencil, Trash2, Check, X, Clock, Users, Info, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,20 +57,38 @@ export default function RcpMeetings() {
   }) as { data: any[] };
 
   // Récupération des présences pour la réunion sélectionnée
-  const { data: attendances = [], refetch: refetchAttendances, isLoading: isLoadingAttendances } = useQuery({
+  const { 
+    data: attendances = [], 
+    refetch: refetchAttendances, 
+    isLoading: isLoadingAttendances,
+    error: attendancesError
+  } = useQuery({
     queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
     enabled: !!selectedMeetingId,
     // Activer le refetch automatique et réduire le staleTime pour plus de synchronisation
     staleTime: 10000,
     refetchInterval: 15000,
-  }) as { data: any[], refetch: () => void, isLoading: boolean };
+  }) as { 
+    data: any[], 
+    refetch: () => void, 
+    isLoading: boolean,
+    error: any 
+  };
   
-  // Log des présences pour débogage
+  // Log des présences et des erreurs pour débogage
   React.useEffect(() => {
     if (attendances && Array.isArray(attendances)) {
       console.log("Présences récupérées:", meetings.filter(m => m.id === selectedMeetingId), attendances);
     }
-  }, [attendances, meetings, selectedMeetingId]);
+    if (attendancesError) {
+      console.error("Erreur lors du chargement des présences:", attendancesError);
+      toast({
+        title: "Erreur de synchronisation",
+        description: "Impossible de charger les données de présences. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    }
+  }, [attendances, attendancesError, meetings, selectedMeetingId, toast]);
   
   // Effet pour refetch les présences quand on change de réunion sélectionnée
   React.useEffect(() => {
@@ -714,9 +732,16 @@ export default function RcpMeetings() {
                         <div className="flex items-center">
                           <AlertCircle className="h-5 w-5 text-blue-600 mr-2" />
                           <span className="font-medium">Statut:</span>
-                          <Badge className="ml-2" variant={getPresentCount() > 0 ? "default" : "destructive"}>
-                            {getPresentCount() > 0 ? "Réunion validée" : "Aucun participant"}
-                          </Badge>
+                          {isLoadingAttendances ? (
+                            <Badge className="ml-2" variant="outline">
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Chargement...
+                            </Badge>
+                          ) : (
+                            <Badge className="ml-2" variant={getPresentCount() > 0 ? "default" : "destructive"}>
+                              {getPresentCount() > 0 ? "Réunion validée" : "Aucun participant"}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -752,11 +777,30 @@ export default function RcpMeetings() {
                     // Affichage pendant le chargement
                     <div className="py-8 space-y-4">
                       <div className="animate-pulse flex justify-center">
-                        <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+                        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                       </div>
                       <p className="text-center text-sm text-muted-foreground">
                         Chargement des données de présence...
                       </p>
+                    </div>
+                  ) : attendancesError ? (
+                    // Affichage en cas d'erreur
+                    <div className="py-8 space-y-4">
+                      <div className="text-center">
+                        <AlertCircle className="h-8 w-8 mx-auto text-red-500 mb-2" />
+                        <p className="font-medium text-red-600">Erreur de chargement</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Impossible de récupérer les données de présence. Veuillez réessayer plus tard.
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          className="mt-4"
+                          onClick={() => refetchAttendances()}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Réessayer
+                        </Button>
+                      </div>
                     </div>
                   ) : associates.length === 0 ? (
                     <div className="text-center p-8 bg-gray-50 rounded border">
