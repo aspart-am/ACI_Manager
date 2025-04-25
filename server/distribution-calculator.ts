@@ -1,4 +1,5 @@
-import { query } from './db';
+// Utiliser le stockage JSON au lieu de PostgreSQL
+import { storage } from './storage';
 
 // Interface pour tout objet dynamique permettant l'accès aux propriétés par string
 interface DynamicObject {
@@ -150,28 +151,28 @@ export async function calculateDistribution(): Promise<DistributionResult> {
   try {
     console.log("======== Début du calcul de distribution ========");
     // 1. Récupérer les paramètres nécessaires
-    const fixedShareResult = await query("SELECT value FROM settings WHERE key = 'fixed_revenue_share'");
-    const rcpShareResult = await query("SELECT value FROM settings WHERE key = 'rcp_share'");
-    const projectShareResult = await query("SELECT value FROM settings WHERE key = 'project_share'");
-    const managerWeightResult = await query("SELECT value FROM settings WHERE key = 'aci_manager_weight'");
+    const fixedShareSetting = await storage.getSetting('fixed_revenue_share');
+    const rcpShareSetting = await storage.getSetting('rcp_share');
+    const projectShareSetting = await storage.getSetting('project_share');
+    const managerWeightSetting = await storage.getSetting('aci_manager_weight');
     
     // Si les paramètres n'existent pas, utilisez les valeurs par défaut
-    const fixedSharePercentage = parseFloat(fixedShareResult.rows[0]?.value || '0.5');
-    const rcpSharePercentage = parseFloat(rcpShareResult.rows[0]?.value || '0.25');
-    const projectSharePercentage = parseFloat(projectShareResult.rows[0]?.value || '0.25');
-    const managerWeight = parseFloat(managerWeightResult.rows[0]?.value || '1.5');
+    const fixedSharePercentage = parseFloat(fixedShareSetting?.value || '0.5');
+    const rcpSharePercentage = parseFloat(rcpShareSetting?.value || '0.25');
+    const projectSharePercentage = parseFloat(projectShareSetting?.value || '0.25');
+    const managerWeight = parseFloat(managerWeightSetting?.value || '1.5');
     
     // 2. Récupérer les revenus ACI
-    const revenuesResult = await query("SELECT SUM(CAST(amount AS DECIMAL)) AS total FROM revenues WHERE category = 'ACI'");
-    const totalAciRevenue = parseFloat(revenuesResult.rows[0]?.total || '0');
+    const allRevenues = await storage.getRevenues();
+    const aciRevenues = allRevenues.filter(rev => rev.category === 'ACI');
+    const totalAciRevenue = aciRevenues.reduce((sum, rev) => sum + parseFloat(rev.amount), 0);
     
     // 3. Récupérer tous les revenus
-    const allRevenuesResult = await query("SELECT SUM(CAST(amount AS DECIMAL)) AS total FROM revenues");
-    const totalRevenue = parseFloat(allRevenuesResult.rows[0]?.total || '0');
+    const totalRevenue = allRevenues.reduce((sum, rev) => sum + parseFloat(rev.amount), 0);
     
     // 4. Récupérer toutes les dépenses
-    const expensesResult = await query("SELECT SUM(CAST(amount AS DECIMAL)) AS total FROM expenses");
-    const totalExpenses = parseFloat(expensesResult.rows[0]?.total || '0');
+    const expenses = await storage.getExpenses();
+    const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
     
     // 5. Calculer le montant net à distribuer (revenu ACI - dépenses)
     const netAmount = totalAciRevenue - totalExpenses;
@@ -185,8 +186,7 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     }
     
     // 6. Récupérer tous les associés
-    const associatesResult = await query("SELECT * FROM associates ORDER BY name");
-    const associates: Associate[] = associatesResult.rows;
+    const associates = await storage.getAssociates();
     
     if (associates.length === 0) {
       return {
@@ -222,15 +222,14 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     const totalRcpShare = netAmount * rcpSharePercentage;
     
     // 8.1 Récupérer toutes les réunions RCP
-    const rcpMeetingsResult = await query("SELECT * FROM rcp_meetings");
-    const rcpMeetings: RcpMeeting[] = rcpMeetingsResult.rows;
+    const rcpMeetings = await storage.getRcpMeetings();
     
     if (rcpMeetings.length > 0) {
-      // 8.2 Récupérer toutes les présences RCP marquées comme "attended = true" directement dans la requête
-      const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance WHERE attended = true");
-      // Convertir les résultats en objets RcpAttendance - debug pour voir les données récupérées
-      console.log("Présences RCP avec attended=true:", rcpAttendancesResult.rows.length);
-      const rcpAttendances: RcpAttendance[] = rcpAttendancesResult.rows;
+      // 8.2 Récupérer toutes les présences RCP marquées comme "attended = true"
+      const allRcpAttendances = await storage.getRcpAttendances();
+      const rcpAttendances = allRcpAttendances.filter(att => att.attended);
+      // Debug pour voir les données récupérées
+      console.log("Présences RCP avec attended=true:", rcpAttendances.length);
       
       // 8.3 Calculer le temps de présence par associé (en minutes)
       const attendanceTimeByAssociate: Record<number, number> = {};
