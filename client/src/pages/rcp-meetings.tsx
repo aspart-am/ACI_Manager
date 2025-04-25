@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Calendar, Pencil, Trash2, Check, X } from 'lucide-react';
+import { Calendar, Pencil, Trash2, Check, X, Clock, Users, Info, AlertCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { apiRequest } from '@/lib/queryClient';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 // Schéma de validation du formulaire
 const formSchema = z.object({
@@ -298,26 +299,46 @@ export default function RcpMeetings() {
   // Fonction pour formater la date
   const formatDate = (dateString: string) => {
     try {
-      const date = new Date(dateString);
+      if (!dateString) return 'Date non définie';
+      
+      // Vérifier si la date est au format ISO ou un autre format valide
+      const date = dateString.includes('T') 
+        ? parseISO(dateString) 
+        : new Date(dateString);
+        
       return format(date, 'dd MMMM yyyy', { locale: fr });
     } catch (e) {
-      return dateString;
+      console.error('Erreur lors du formatage de la date:', e);
+      return 'Date invalide';
     }
   };
 
   // Vérifier si un associé est présent à la réunion sélectionnée
   const isAssociatePresent = (associateId: number) => {
-    // Maintenant nous utilisons uniquement associateId (camelCase)
-    const attendance = attendances.find((a: any) => a.associateId === associateId);
-    console.log(`Vérifie présence pour l'associé ${associateId}:`, attendance ? `Présent (${attendance.id})` : 'Absent');
-    return attendance ? attendance.attended : false;
+    if (!attendances || !Array.isArray(attendances)) return false;
+    
+    const attendance = attendances.find((a: any) => 
+      a && typeof a === 'object' && a.associateId === associateId
+    );
+    
+    return attendance && attendance.attended === true;
   };
 
   // Obtenir l'ID de présence pour un associé
   const getAttendanceId = (associateId: number) => {
-    // Maintenant nous utilisons uniquement associateId (camelCase)
-    const attendance = attendances.find((a: any) => a.associateId === associateId);
+    if (!attendances || !Array.isArray(attendances)) return null;
+    
+    const attendance = attendances.find((a: any) => 
+      a && typeof a === 'object' && a.associateId === associateId
+    );
+    
     return attendance ? attendance.id : null;
+  };
+  
+  // Compte le nombre d'associés présents
+  const getPresentCount = () => {
+    if (!attendances || !Array.isArray(attendances)) return 0;
+    return attendances.filter((a: any) => a && a.attended === true).length;
   };
 
   return (
@@ -604,25 +625,93 @@ export default function RcpMeetings() {
             </CardHeader>
             <CardContent>
               {!selectedMeetingId ? (
-                <p>Veuillez sélectionner une réunion dans la liste à gauche.</p>
+                <div className="flex items-center justify-center h-40">
+                  <div className="text-center">
+                    <Info className="h-8 w-8 mx-auto text-blue-500 mb-2" />
+                    <p>Veuillez sélectionner une réunion dans la liste à gauche pour gérer les présences.</p>
+                  </div>
+                </div>
               ) : (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Liste des associés</h3>
+                <div className="space-y-6">
+                  {/* Section d'informations sur la réunion */}
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <div className="flex flex-col md:flex-row md:justify-between gap-4">
+                      <div>
+                        <div className="flex items-center mb-2">
+                          <Calendar className="h-5 w-5 text-blue-600 mr-2" />
+                          <span className="font-medium">Date:</span> 
+                          <span className="ml-2">{formatDate(selectedMeeting?.date || '')}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="h-5 w-5 text-blue-600 mr-2" />
+                          <span className="font-medium">Durée:</span>
+                          <span className="ml-2">{selectedMeeting?.duration || 0} minutes</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2">
+                          <Users className="h-5 w-5 text-blue-600 mr-2" />
+                          <span className="font-medium">Présences:</span>
+                          <Badge className="ml-2" variant="outline">
+                            {getPresentCount()} / {associates.length}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center">
+                          <AlertCircle className="h-5 w-5 text-blue-600 mr-2" />
+                          <span className="font-medium">Statut:</span>
+                          <Badge className="ml-2" variant={getPresentCount() > 0 ? "default" : "destructive"}>
+                            {getPresentCount() > 0 ? "Réunion validée" : "Aucun participant"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Explication pour l'utilisateur */}
+                  <Alert variant="outline">
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Gestion des présences</AlertTitle>
+                    <AlertDescription>
+                      Cochez les cases pour marquer les associés présents à cette réunion.
+                      Ces présences seront prises en compte dans le calcul de la répartition des revenus.
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <h3 className="text-lg font-medium flex items-center">
+                    <Users className="h-5 w-5 mr-2" />
+                    Liste des associés
+                  </h3>
                   <Separator />
+                  
                   {associates.length === 0 ? (
-                    <p>Aucun associé trouvé.</p>
+                    <div className="text-center p-8 bg-gray-50 rounded border">
+                      <p>Aucun associé trouvé. Veuillez ajouter des associés dans la section "Associés".</p>
+                    </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {associates.map((associate: any) => {
+                        if (!associate || !associate.id) return null;
+                        
                         const isPresent = isAssociatePresent(associate.id);
                         const attendanceId = getAttendanceId(associate.id);
+                        
                         return (
-                          <div key={associate.id} className="flex items-center justify-between p-3 border rounded-md">
+                          <div 
+                            key={associate.id} 
+                            className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+                              isPresent 
+                                ? 'bg-green-50 border-green-200' 
+                                : 'bg-white hover:bg-gray-50'
+                            }`}
+                          >
                             <div>
                               <p className="font-medium">{associate.name}</p>
                               <p className="text-sm text-muted-foreground">{associate.profession}</p>
+                              {associate.isManager && (
+                                <Badge className="mt-1" variant="outline">Co-gérant</Badge>
+                              )}
                             </div>
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-3">
                               <div className="flex items-center space-x-2">
                                 <Checkbox
                                   id={`attendance-${associate.id}`}
@@ -631,19 +720,19 @@ export default function RcpMeetings() {
                                     handleAttendanceChange(attendanceId, associate.id, checked === true);
                                   }}
                                 />
-                                <Label htmlFor={`attendance-${associate.id}`}>
-                                  Marquer présent
+                                <Label htmlFor={`attendance-${associate.id}`} className="cursor-pointer">
+                                  {isPresent ? 'Présent' : 'Absent'}
                                 </Label>
                               </div>
                               
                               {/* Indicateur visuel de présence */}
                               {isPresent ? (
-                                <Badge className="bg-green-500 text-white flex items-center py-1 px-2">
-                                  <Check className="h-4 w-4 mr-1" /> Présent
+                                <Badge className="bg-green-500 text-white">
+                                  <Check className="h-4 w-4 mr-1" />
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-gray-100 text-gray-700 flex items-center py-1 px-2">
-                                  <X className="h-4 w-4 mr-1" /> Absent
+                                <Badge variant="outline" className="bg-gray-100 text-gray-700">
+                                  <X className="h-4 w-4" />
                                 </Badge>
                               )}
                             </div>
