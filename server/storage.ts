@@ -1232,7 +1232,16 @@ export class MemStorage implements IStorage {
   
   // RCP Meeting methods
   async getRcpMeetings(): Promise<RcpMeeting[]> {
-    return [...this.rcpMeetings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Ajouter le compte des présences pour chaque réunion et trier par date décroissante
+    const meetingsWithCounts = [...this.rcpMeetings].map(meeting => {
+      const attendanceCount = this.rcpAttendances.filter(a => a.rcpId === meeting.id && a.attended).length;
+      return {
+        ...meeting,
+        attendanceCount
+      };
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    return meetingsWithCounts;
   }
   
   async getRcpMeeting(id: number): Promise<RcpMeeting | undefined> {
@@ -1341,7 +1350,15 @@ export class MemStorage implements IStorage {
   
   // Project methods
   async getProjects(): Promise<Project[]> {
-    return this.projects;
+    // Ajouter le compte des associés pour chaque projet
+    const projectsWithCounts = this.projects.map(project => {
+      const assignmentCount = this.projectAssignments.filter(a => a.projectId === project.id).length;
+      return {
+        ...project,
+        assignmentCount
+      };
+    });
+    return projectsWithCounts;
   }
   
   async getProject(id: number): Promise<Project | undefined> {

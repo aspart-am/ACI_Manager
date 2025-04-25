@@ -300,13 +300,19 @@ export default function RcpMeetings() {
 
   // Vérifier si un associé est présent à la réunion sélectionnée
   const isAssociatePresent = (associateId: number) => {
-    const attendance = attendances.find((a: any) => a.associate_id === associateId);
+    // Chercher d'abord avec associate_id (version snake_case, pour compatibilité)
+    const attendance = attendances.find((a: any) => 
+      (a.associate_id === associateId) || (a.associateId === associateId)
+    );
     return attendance ? attendance.attended : false;
   };
 
   // Obtenir l'ID de présence pour un associé
   const getAttendanceId = (associateId: number) => {
-    const attendance = attendances.find((a: any) => a.associate_id === associateId);
+    // Chercher d'abord avec associate_id (version snake_case, pour compatibilité)
+    const attendance = attendances.find((a: any) => 
+      (a.associate_id === associateId) || (a.associateId === associateId)
+    );
     return attendance ? attendance.id : null;
   };
 
