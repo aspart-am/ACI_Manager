@@ -11,7 +11,15 @@ import {
   type MissionAssignment, type InsertMissionAssignment,
   type Setting, type InsertSetting
 } from "@shared/schema";
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import { query } from "./db";
+
+// Définir __dirname pour les modules ES
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface IStorage {
   // User methods
@@ -752,4 +760,783 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// Classe de stockage en mémoire qui utilise des fichiers JSON
+export class MemStorage implements IStorage {
+  private users: User[] = [];
+  private associates: Associate[] = [];
+  private expenses: Expense[] = [];
+  private revenues: Revenue[] = [];
+  private rcpMeetings: RcpMeeting[] = [];
+  private rcpAttendances: RcpAttendance[] = [];
+  private projects: Project[] = [];
+  private projectAssignments: ProjectAssignment[] = [];
+  private accessoryMissions: AccessoryMission[] = [];
+  private missionAssignments: MissionAssignment[] = [];
+  private settings: Setting[] = [];
+  
+  private dataDir = path.join(__dirname, '../data');
+  
+  constructor() {
+    // Créer le répertoire de données s'il n'existe pas
+    if (!fs.existsSync(this.dataDir)) {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+    }
+    
+    // Chargement des données initiales
+    this.loadData();
+    
+    // Ajouter des données de base si les tableaux sont vides
+    this.initializeDefaultData();
+  }
+  
+  // Méthode utilitaire pour générer un nouvel ID
+  private getNextId(items: { id: number }[]): number {
+    if (items.length === 0) return 1;
+    return Math.max(...items.map(item => item.id)) + 1;
+  }
+  
+  // Charger les données depuis les fichiers JSON
+  private loadData(): void {
+    try {
+      // Créer des fichiers vides s'ils n'existent pas
+      const files = [
+        'users.json', 'associates.json', 'expenses.json', 'revenues.json',
+        'rcp_meetings.json', 'rcp_attendances.json', 'projects.json',
+        'project_assignments.json', 'accessory_missions.json',
+        'mission_assignments.json', 'settings.json'
+      ];
+      
+      files.forEach(file => {
+        const filePath = path.join(this.dataDir, file);
+        if (!fs.existsSync(filePath)) {
+          fs.writeFileSync(filePath, '[]', 'utf8');
+        }
+      });
+      
+      // Charger les données
+      this.users = this.loadJsonFile('users.json');
+      this.associates = this.loadJsonFile('associates.json');
+      this.expenses = this.loadJsonFile('expenses.json');
+      this.revenues = this.loadJsonFile('revenues.json');
+      this.rcpMeetings = this.loadJsonFile('rcp_meetings.json');
+      this.rcpAttendances = this.loadJsonFile('rcp_attendances.json');
+      this.projects = this.loadJsonFile('projects.json');
+      this.projectAssignments = this.loadJsonFile('project_assignments.json');
+      this.accessoryMissions = this.loadJsonFile('accessory_missions.json');
+      this.missionAssignments = this.loadJsonFile('mission_assignments.json');
+      this.settings = this.loadJsonFile('settings.json');
+      
+      console.log('Données chargées avec succès');
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    }
+  }
+  
+  // Sauvegarder les données dans un fichier JSON
+  private saveJsonFile(fileName: string, data: any[]): void {
+    const filePath = path.join(this.dataDir, fileName);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  }
+  
+  // Charger les données depuis un fichier JSON
+  private loadJsonFile<T>(fileName: string): T[] {
+    try {
+      const filePath = path.join(this.dataDir, fileName);
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      return JSON.parse(fileContent) as T[];
+    } catch (error) {
+      console.error(`Erreur lors du chargement du fichier ${fileName}:`, error);
+      return [];
+    }
+  }
+  
+  // Initialiser les données par défaut si nécessaire
+  private initializeDefaultData(): void {
+    // Vérifier si les données de base existent déjà
+    if (this.settings.length === 0) {
+      // Ajouter les paramètres par défaut
+      this.settings = [
+        { id: 1, key: 'fixed_revenue_share', value: '0.5', category: 'distribution', description: 'Part fixe des revenus (en %)' },
+        { id: 2, key: 'rcp_share', value: '0.25', category: 'distribution', description: 'Part des revenus attribuée aux présences RCP (en %)' },
+        { id: 3, key: 'project_share', value: '0.25', category: 'distribution', description: 'Part des revenus attribuée aux projets (en %)' },
+        { id: 4, key: 'aci_manager_weight', value: '1.5', category: 'distribution', description: 'Coefficient de pondération pour les gérants' },
+        { id: 5, key: 'manager_weight', value: '1.5', category: 'distribution', description: 'Coefficient de pondération pour les gérants' }
+      ];
+      this.saveJsonFile('settings.json', this.settings);
+    }
+    
+    // Importer les données de professionnels de santé si disponibles
+    if (this.associates.length === 0) {
+      try {
+        const professionnelsPath = path.join(__dirname, '../attached_assets/professionnels_sante.json');
+        if (fs.existsSync(professionnelsPath)) {
+          const professionnels = JSON.parse(fs.readFileSync(professionnelsPath, 'utf8'));
+          if (Array.isArray(professionnels)) {
+            let id = 1;
+            for (const prof of professionnels) {
+              this.associates.push({
+                id: id++,
+                name: prof.nom || '',
+                profession: prof.profession || '',
+                isManager: prof.isManager || false,
+                joinDate: prof.dateArrivee || new Date().toISOString().split('T')[0],
+                patientCount: prof.nbPatients || null,
+                participationWeight: prof.isManager ? '1.5' : '1.0'
+              });
+            }
+            this.saveJsonFile('associates.json', this.associates);
+            console.log(`Importation de ${this.associates.length} professionnels de santé`);
+          }
+        }
+      } catch (error) {
+        console.error('Erreur lors de l\'importation des professionnels de santé:', error);
+      }
+    }
+    
+    // Ajouter des projets de démonstration si nécessaire
+    if (this.projects.length === 0) {
+      this.projects = [
+        {
+          id: 1,
+          title: 'Prévention Diabète',
+          description: 'Programme de prévention et de suivi des patients diabétiques',
+          startDate: '2023-01-01',
+          endDate: null,
+          status: 'active',
+          weight: '1.5'
+        },
+        {
+          id: 2,
+          title: 'Téléconsultation',
+          description: 'Mise en place d\'un système de téléconsultation pour les patients éloignés',
+          startDate: '2023-03-15',
+          endDate: null,
+          status: 'active',
+          weight: '1.2'
+        }
+      ];
+      this.saveJsonFile('projects.json', this.projects);
+      
+      // Ajouter des réunions RCP de démonstration
+      this.rcpMeetings = [
+        {
+          id: 1,
+          title: 'RCP Mensuelle Janvier',
+          description: 'Réunion mensuelle de coordination pluriprofessionnelle',
+          date: '2023-01-15',
+          duration: 60
+        },
+        {
+          id: 2,
+          title: 'RCP Mensuelle Février',
+          description: 'Réunion mensuelle de coordination pluriprofessionnelle',
+          date: '2023-02-15',
+          duration: 60
+        },
+        {
+          id: 3,
+          title: 'RCP Diabète',
+          description: 'Réunion spécifique sur le suivi des patients diabétiques',
+          date: '2023-02-01',
+          duration: 120
+        }
+      ];
+      this.saveJsonFile('rcp_meetings.json', this.rcpMeetings);
+      
+      // Ajouter des revenus ACI de démonstration
+      this.revenues = [
+        {
+          id: 1,
+          source: 'CPAM',
+          description: 'Versement ACI Annuel',
+          amount: '50000',
+          date: '2023-01-10',
+          category: 'ACI'
+        },
+        {
+          id: 2,
+          source: 'CPAM',
+          description: 'Supplément ACI Projets Innovants',
+          amount: '7375',
+          date: '2023-02-15',
+          category: 'ACI'
+        }
+      ];
+      this.saveJsonFile('revenues.json', this.revenues);
+      
+      // Ajouter des dépenses de démonstration
+      this.expenses = [
+        {
+          id: 1,
+          category: 'Loyer',
+          description: 'Loyer du local',
+          amount: '2500',
+          date: '2023-01-05',
+          isRecurring: true,
+          frequency: 'mensuel'
+        },
+        {
+          id: 2,
+          category: 'Matériel',
+          description: 'Achat de matériel informatique',
+          amount: '3800',
+          date: '2023-01-20',
+          isRecurring: false,
+          frequency: null
+        }
+      ];
+      this.saveJsonFile('expenses.json', this.expenses);
+    }
+  }
+  
+  // Implémentation des méthodes de l'interface IStorage
+  
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.find(user => user.id === id);
+  }
+  
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return this.users.find(user => user.username === username);
+  }
+  
+  async createUser(user: InsertUser): Promise<User> {
+    const newUser: User = {
+      id: this.getNextId(this.users),
+      ...user,
+      role: user.role || 'user'
+    };
+    
+    this.users.push(newUser);
+    this.saveJsonFile('users.json', this.users);
+    return newUser;
+  }
+  
+  // Associate methods
+  async getAssociates(): Promise<Associate[]> {
+    return [...this.associates].sort((a, b) => a.name.localeCompare(b.name));
+  }
+  
+  async getAssociate(id: number): Promise<Associate | undefined> {
+    return this.associates.find(associate => associate.id === id);
+  }
+  
+  async createAssociate(associate: InsertAssociate): Promise<Associate> {
+    const newAssociate: Associate = {
+      id: this.getNextId(this.associates),
+      ...associate,
+      isManager: associate.isManager ?? false,
+      patientCount: associate.patientCount ?? null,
+      participationWeight: associate.participationWeight ?? '1.0'
+    };
+    
+    this.associates.push(newAssociate);
+    this.saveJsonFile('associates.json', this.associates);
+    return newAssociate;
+  }
+  
+  async updateAssociate(id: number, associate: Partial<InsertAssociate>): Promise<Associate | undefined> {
+    const index = this.associates.findIndex(a => a.id === id);
+    if (index === -1) return undefined;
+    
+    const current = this.associates[index];
+    
+    // Vérifier si le statut de gérant a changé
+    let updatedWeight = associate.participationWeight;
+    
+    if (associate.isManager !== undefined && associate.isManager !== current.isManager) {
+      // Si l'associé devient gérant, son poids de participation passe à 1.5
+      // sauf si une valeur explicite a été fournie
+      if (associate.isManager === true && associate.participationWeight === undefined) {
+        // Récupération de la valeur de pondération des gérants depuis les paramètres
+        const managerWeightSetting = await this.getSetting('manager_weight');
+        const managerWeight = managerWeightSetting ? managerWeightSetting.value : '1.5';
+        
+        updatedWeight = managerWeight;
+      }
+      
+      // Si l'associé n'est plus gérant, son poids revient à 1.0
+      // sauf si une valeur explicite a été fournie
+      if (associate.isManager === false && associate.participationWeight === undefined) {
+        updatedWeight = '1.0';
+      }
+    }
+    
+    const updated: Associate = {
+      ...current,
+      ...associate,
+      participationWeight: updatedWeight || associate.participationWeight || current.participationWeight
+    };
+    
+    this.associates[index] = updated;
+    this.saveJsonFile('associates.json', this.associates);
+    return updated;
+  }
+  
+  async deleteAssociate(id: number): Promise<boolean> {
+    const initialLength = this.associates.length;
+    this.associates = this.associates.filter(associate => associate.id !== id);
+    
+    if (initialLength !== this.associates.length) {
+      this.saveJsonFile('associates.json', this.associates);
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // Expense methods
+  async getExpenses(): Promise<Expense[]> {
+    return [...this.expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+  
+  async getExpense(id: number): Promise<Expense | undefined> {
+    return this.expenses.find(expense => expense.id === id);
+  }
+  
+  async createExpense(expense: InsertExpense): Promise<Expense> {
+    const newExpense: Expense = {
+      id: this.getNextId(this.expenses),
+      ...expense,
+      isRecurring: expense.isRecurring ?? false,
+      frequency: expense.frequency || null
+    };
+    
+    this.expenses.push(newExpense);
+    this.saveJsonFile('expenses.json', this.expenses);
+    return newExpense;
+  }
+  
+  async updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined> {
+    const index = this.expenses.findIndex(e => e.id === id);
+    if (index === -1) return undefined;
+    
+    const current = this.expenses[index];
+    const updated: Expense = { ...current, ...expense };
+    
+    this.expenses[index] = updated;
+    this.saveJsonFile('expenses.json', this.expenses);
+    return updated;
+  }
+  
+  async deleteExpense(id: number): Promise<boolean> {
+    const initialLength = this.expenses.length;
+    this.expenses = this.expenses.filter(expense => expense.id !== id);
+    
+    if (initialLength !== this.expenses.length) {
+      this.saveJsonFile('expenses.json', this.expenses);
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // Revenue methods
+  async getRevenues(): Promise<Revenue[]> {
+    return [...this.revenues].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+  
+  async getRevenue(id: number): Promise<Revenue | undefined> {
+    return this.revenues.find(revenue => revenue.id === id);
+  }
+  
+  async createRevenue(revenue: InsertRevenue): Promise<Revenue> {
+    const newRevenue: Revenue = {
+      id: this.getNextId(this.revenues),
+      ...revenue
+    };
+    
+    this.revenues.push(newRevenue);
+    this.saveJsonFile('revenues.json', this.revenues);
+    return newRevenue;
+  }
+  
+  async updateRevenue(id: number, revenue: Partial<InsertRevenue>): Promise<Revenue | undefined> {
+    const index = this.revenues.findIndex(r => r.id === id);
+    if (index === -1) return undefined;
+    
+    const current = this.revenues[index];
+    const updated: Revenue = { ...current, ...revenue };
+    
+    this.revenues[index] = updated;
+    this.saveJsonFile('revenues.json', this.revenues);
+    return updated;
+  }
+  
+  async deleteRevenue(id: number): Promise<boolean> {
+    const initialLength = this.revenues.length;
+    this.revenues = this.revenues.filter(revenue => revenue.id !== id);
+    
+    if (initialLength !== this.revenues.length) {
+      this.saveJsonFile('revenues.json', this.revenues);
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // RCP Meeting methods
+  async getRcpMeetings(): Promise<RcpMeeting[]> {
+    return [...this.rcpMeetings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+  
+  async getRcpMeeting(id: number): Promise<RcpMeeting | undefined> {
+    return this.rcpMeetings.find(meeting => meeting.id === id);
+  }
+  
+  async createRcpMeeting(meeting: InsertRcpMeeting): Promise<RcpMeeting> {
+    // Conversion de la durée en nombre si elle est fournie sous forme de chaîne
+    let durationValue: number | null = null;
+    if (meeting.duration !== undefined) {
+      durationValue = typeof meeting.duration === 'string' 
+        ? parseInt(meeting.duration, 10) 
+        : meeting.duration;
+    }
+
+    const newMeeting: RcpMeeting = {
+      id: this.getNextId(this.rcpMeetings),
+      title: meeting.title,
+      description: meeting.description || null,
+      date: meeting.date,
+      duration: durationValue
+    };
+    
+    this.rcpMeetings.push(newMeeting);
+    this.saveJsonFile('rcp_meetings.json', this.rcpMeetings);
+    return newMeeting;
+  }
+  
+  async updateRcpMeeting(id: number, meeting: Partial<InsertRcpMeeting>): Promise<RcpMeeting | undefined> {
+    const index = this.rcpMeetings.findIndex(m => m.id === id);
+    if (index === -1) return undefined;
+    
+    const current = this.rcpMeetings[index];
+    const updated: RcpMeeting = { ...current, ...meeting };
+    
+    this.rcpMeetings[index] = updated;
+    this.saveJsonFile('rcp_meetings.json', this.rcpMeetings);
+    return updated;
+  }
+  
+  async deleteRcpMeeting(id: number): Promise<boolean> {
+    const initialLength = this.rcpMeetings.length;
+    this.rcpMeetings = this.rcpMeetings.filter(meeting => meeting.id !== id);
+    
+    if (initialLength !== this.rcpMeetings.length) {
+      // Supprimer aussi les présences associées
+      const initialAttendancesLength = this.rcpAttendances.length;
+      this.rcpAttendances = this.rcpAttendances.filter(attendance => attendance.rcpId !== id);
+      
+      this.saveJsonFile('rcp_meetings.json', this.rcpMeetings);
+      
+      if (initialAttendancesLength !== this.rcpAttendances.length) {
+        this.saveJsonFile('rcp_attendances.json', this.rcpAttendances);
+      }
+      
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // RCP Attendance methods
+  async getRcpAttendances(rcpId: number): Promise<RcpAttendance[]> {
+    return this.rcpAttendances.filter(attendance => attendance.rcpId === rcpId);
+  }
+  
+  async createRcpAttendance(attendance: InsertRcpAttendance): Promise<RcpAttendance> {
+    // Vérifier si une entrée existe déjà pour cette combinaison rcpId/associateId
+    const existingIndex = this.rcpAttendances.findIndex(
+      a => a.rcpId === attendance.rcpId && a.associateId === attendance.associateId
+    );
+    
+    if (existingIndex !== -1) {
+      // Mettre à jour l'entrée existante au lieu d'en créer une nouvelle
+      const updated = {
+        ...this.rcpAttendances[existingIndex],
+        attended: attendance.attended ?? false
+      };
+      
+      this.rcpAttendances[existingIndex] = updated;
+      this.saveJsonFile('rcp_attendances.json', this.rcpAttendances);
+      return updated;
+    }
+    
+    // Sinon, créer une nouvelle entrée
+    const newAttendance: RcpAttendance = {
+      id: this.getNextId(this.rcpAttendances),
+      ...attendance,
+      attended: attendance.attended ?? false
+    };
+    
+    this.rcpAttendances.push(newAttendance);
+    this.saveJsonFile('rcp_attendances.json', this.rcpAttendances);
+    return newAttendance;
+  }
+  
+  async updateRcpAttendance(id: number, attended: boolean): Promise<RcpAttendance | undefined> {
+    const index = this.rcpAttendances.findIndex(a => a.id === id);
+    if (index === -1) return undefined;
+    
+    const updated = { ...this.rcpAttendances[index], attended };
+    this.rcpAttendances[index] = updated;
+    this.saveJsonFile('rcp_attendances.json', this.rcpAttendances);
+    return updated;
+  }
+  
+  // Project methods
+  async getProjects(): Promise<Project[]> {
+    return this.projects;
+  }
+  
+  async getProject(id: number): Promise<Project | undefined> {
+    return this.projects.find(project => project.id === id);
+  }
+  
+  async createProject(project: InsertProject): Promise<Project> {
+    const newProject: Project = {
+      id: this.getNextId(this.projects),
+      title: project.title,
+      description: project.description || null,
+      startDate: project.startDate,
+      endDate: project.endDate || null,
+      status: project.status || 'active',
+      weight: project.weight || '1.0'
+    };
+    
+    this.projects.push(newProject);
+    this.saveJsonFile('projects.json', this.projects);
+    return newProject;
+  }
+  
+  async updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined> {
+    const index = this.projects.findIndex(p => p.id === id);
+    if (index === -1) return undefined;
+    
+    const current = this.projects[index];
+    const updated: Project = { ...current, ...project };
+    
+    this.projects[index] = updated;
+    this.saveJsonFile('projects.json', this.projects);
+    return updated;
+  }
+  
+  async deleteProject(id: number): Promise<boolean> {
+    const initialLength = this.projects.length;
+    this.projects = this.projects.filter(project => project.id !== id);
+    
+    if (initialLength !== this.projects.length) {
+      // Supprimer aussi les affectations associées
+      const initialAssignmentsLength = this.projectAssignments.length;
+      this.projectAssignments = this.projectAssignments.filter(assignment => assignment.projectId !== id);
+      
+      this.saveJsonFile('projects.json', this.projects);
+      
+      if (initialAssignmentsLength !== this.projectAssignments.length) {
+        this.saveJsonFile('project_assignments.json', this.projectAssignments);
+      }
+      
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // Project Assignment methods
+  async getProjectAssignments(projectId: number): Promise<ProjectAssignment[]> {
+    return this.projectAssignments.filter(assignment => assignment.projectId === projectId);
+  }
+  
+  async createProjectAssignment(assignment: InsertProjectAssignment): Promise<ProjectAssignment> {
+    const newAssignment: ProjectAssignment = {
+      id: this.getNextId(this.projectAssignments),
+      associateId: assignment.associateId,
+      projectId: assignment.projectId,
+      contribution: assignment.contribution || '0'
+    };
+    
+    this.projectAssignments.push(newAssignment);
+    this.saveJsonFile('project_assignments.json', this.projectAssignments);
+    return newAssignment;
+  }
+  
+  async updateProjectAssignment(id: number, contribution: number): Promise<ProjectAssignment | undefined> {
+    const index = this.projectAssignments.findIndex(a => a.id === id);
+    if (index === -1) return undefined;
+    
+    const updated = {
+      ...this.projectAssignments[index],
+      contribution: contribution.toString()
+    };
+    
+    this.projectAssignments[index] = updated;
+    this.saveJsonFile('project_assignments.json', this.projectAssignments);
+    return updated;
+  }
+  
+  // Accessory Missions methods
+  async getAccessoryMissions(): Promise<AccessoryMission[]> {
+    return this.accessoryMissions;
+  }
+  
+  async getAccessoryMissionsByYear(year: number): Promise<AccessoryMission[]> {
+    return this.accessoryMissions.filter(mission => mission.year === year);
+  }
+  
+  async getAccessoryMission(id: number): Promise<AccessoryMission | undefined> {
+    return this.accessoryMissions.find(mission => mission.id === id);
+  }
+  
+  async createAccessoryMission(mission: InsertAccessoryMission): Promise<AccessoryMission> {
+    const newMission: AccessoryMission = {
+      id: this.getNextId(this.accessoryMissions),
+      title: mission.title,
+      description: mission.description || null,
+      startDate: mission.startDate,
+      endDate: mission.endDate || null,
+      status: mission.status || 'active',
+      type: mission.type || 'standard',
+      budget: mission.budget || '0',
+      year: mission.year
+    };
+    
+    this.accessoryMissions.push(newMission);
+    this.saveJsonFile('accessory_missions.json', this.accessoryMissions);
+    return newMission;
+  }
+  
+  async updateAccessoryMission(id: number, mission: Partial<InsertAccessoryMission>): Promise<AccessoryMission | undefined> {
+    const index = this.accessoryMissions.findIndex(m => m.id === id);
+    if (index === -1) return undefined;
+    
+    const current = this.accessoryMissions[index];
+    const updated: AccessoryMission = { ...current, ...mission };
+    
+    this.accessoryMissions[index] = updated;
+    this.saveJsonFile('accessory_missions.json', this.accessoryMissions);
+    return updated;
+  }
+  
+  async deleteAccessoryMission(id: number): Promise<boolean> {
+    const initialLength = this.accessoryMissions.length;
+    this.accessoryMissions = this.accessoryMissions.filter(mission => mission.id !== id);
+    
+    if (initialLength !== this.accessoryMissions.length) {
+      // Supprimer aussi les assignations associées
+      const initialAssignmentsLength = this.missionAssignments.length;
+      this.missionAssignments = this.missionAssignments.filter(assignment => assignment.missionId !== id);
+      
+      this.saveJsonFile('accessory_missions.json', this.accessoryMissions);
+      
+      if (initialAssignmentsLength !== this.missionAssignments.length) {
+        this.saveJsonFile('mission_assignments.json', this.missionAssignments);
+      }
+      
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // Mission Assignment methods
+  async getMissionAssignments(missionId: number): Promise<MissionAssignment[]> {
+    return this.missionAssignments.filter(assignment => assignment.missionId === missionId);
+  }
+  
+  async getMissionAssignment(id: number): Promise<MissionAssignment | undefined> {
+    return this.missionAssignments.find(assignment => assignment.id === id);
+  }
+  
+  async createMissionAssignment(assignment: InsertMissionAssignment): Promise<MissionAssignment> {
+    const newAssignment: MissionAssignment = {
+      id: this.getNextId(this.missionAssignments),
+      associateId: assignment.associateId,
+      missionId: assignment.missionId,
+      contributionPercentage: assignment.contributionPercentage || '0'
+    };
+    
+    this.missionAssignments.push(newAssignment);
+    this.saveJsonFile('mission_assignments.json', this.missionAssignments);
+    return newAssignment;
+  }
+  
+  async updateMissionAssignment(id: number, contributionPercentage: number): Promise<MissionAssignment | undefined> {
+    const index = this.missionAssignments.findIndex(a => a.id === id);
+    if (index === -1) return undefined;
+    
+    const updated = {
+      ...this.missionAssignments[index],
+      contributionPercentage: contributionPercentage.toString()
+    };
+    
+    this.missionAssignments[index] = updated;
+    this.saveJsonFile('mission_assignments.json', this.missionAssignments);
+    return updated;
+  }
+  
+  async deleteMissionAssignment(id: number): Promise<boolean> {
+    const initialLength = this.missionAssignments.length;
+    this.missionAssignments = this.missionAssignments.filter(assignment => assignment.id !== id);
+    
+    if (initialLength !== this.missionAssignments.length) {
+      this.saveJsonFile('mission_assignments.json', this.missionAssignments);
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // Settings methods
+  async getSettings(): Promise<Setting[]> {
+    return this.settings;
+  }
+  
+  async getSetting(key: string): Promise<Setting | undefined> {
+    return this.settings.find(setting => setting.key === key);
+  }
+  
+  async createSetting(setting: InsertSetting): Promise<Setting> {
+    // Vérifier si le paramètre existe déjà
+    const existingIndex = this.settings.findIndex(s => s.key === setting.key);
+    
+    if (existingIndex !== -1) {
+      // Mettre à jour le paramètre existant au lieu d'en créer un nouveau
+      const updated = {
+        ...this.settings[existingIndex],
+        value: setting.value,
+        category: setting.category || this.settings[existingIndex].category,
+        description: setting.description !== undefined ? setting.description : this.settings[existingIndex].description
+      };
+      
+      this.settings[existingIndex] = updated;
+      this.saveJsonFile('settings.json', this.settings);
+      return updated;
+    }
+    
+    // Sinon, créer un nouveau paramètre
+    const newSetting: Setting = {
+      id: this.getNextId(this.settings),
+      key: setting.key,
+      value: setting.value,
+      category: setting.category || 'general',
+      description: setting.description || null
+    };
+    
+    this.settings.push(newSetting);
+    this.saveJsonFile('settings.json', this.settings);
+    return newSetting;
+  }
+  
+  async updateSetting(key: string, value: string): Promise<Setting | undefined> {
+    const index = this.settings.findIndex(s => s.key === key);
+    if (index === -1) return undefined;
+    
+    const updated = { ...this.settings[index], value };
+    this.settings[index] = updated;
+    this.saveJsonFile('settings.json', this.settings);
+    return updated;
+  }
+}
+
+// Utiliser le stockage en mémoire au lieu de PostgreSQL
+export const storage = new MemStorage();

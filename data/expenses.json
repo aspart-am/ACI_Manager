@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "category": "Loyer",
+    "description": "Loyer du local",
+    "amount": "2500",
+    "date": "2023-01-05",
+    "isRecurring": true,
+    "frequency": "mensuel"
+  },
+  {
+    "id": 2,
+    "category": "Matériel",
+    "description": "Achat de matériel informatique",
+    "amount": "3800",
+    "date": "2023-01-20",
+    "isRecurring": false,
+    "frequency": null
+  }
+]

@@ -612,18 +612,30 @@ export default function RcpMeetings() {
                               <p className="font-medium">{associate.name}</p>
                               <p className="text-sm text-muted-foreground">{associate.profession}</p>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`attendance-${associate.id}`}
-                                checked={isPresent}
-                                onCheckedChange={(checked) => {
-                                  console.log("Checkbox changed:", associate.id, checked);
-                                  handleAttendanceChange(attendanceId, associate.id, checked === true);
-                                }}
-                              />
-                              <Label htmlFor={`attendance-${associate.id}`}>
-                                {isPresent ? "Présent" : "Absent"}
-                              </Label>
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`attendance-${associate.id}`}
+                                  checked={isPresent}
+                                  onCheckedChange={(checked) => {
+                                    handleAttendanceChange(attendanceId, associate.id, checked === true);
+                                  }}
+                                />
+                                <Label htmlFor={`attendance-${associate.id}`}>
+                                  Marquer présent
+                                </Label>
+                              </div>
+                              
+                              {/* Indicateur visuel de présence */}
+                              {isPresent ? (
+                                <Badge className="bg-green-500 text-white flex items-center py-1 px-2">
+                                  <Check className="h-4 w-4 mr-1" /> Présent
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-gray-100 text-gray-700 flex items-center py-1 px-2">
+                                  <X className="h-4 w-4 mr-1" /> Absent
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         );

@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "source": "CPAM",
+    "description": "Versement ACI Annuel",
+    "amount": "50000",
+    "date": "2023-01-10",
+    "category": "ACI"
+  },
+  {
+    "id": 2,
+    "source": "CPAM",
+    "description": "Supplément ACI Projets Innovants",
+    "amount": "7375",
+    "date": "2023-02-15",
+    "category": "ACI"
+  }
+]

@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "title": "RCP Mensuelle Janvier",
+    "description": "Réunion mensuelle de coordination pluriprofessionnelle",
+    "date": "2023-01-15",
+    "duration": 60
+  },
+  {
+    "id": 2,
+    "title": "RCP Mensuelle Février",
+    "description": "Réunion mensuelle de coordination pluriprofessionnelle",
+    "date": "2023-02-15",
+    "duration": 60
+  },
+  {
+    "id": 3,
+    "title": "RCP Diabète",
+    "description": "Réunion spécifique sur le suivi des patients diabétiques",
+    "date": "2023-02-01",
+    "duration": 120
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "title": "Prévention Diabète",
+    "description": "Programme de prévention et de suivi des patients diabétiques",
+    "startDate": "2023-01-01",
+    "endDate": null,
+    "status": "active",
+    "weight": "1.5"
+  },
+  {
+    "id": 2,
+    "title": "Téléconsultation",
+    "description": "Mise en place d'un système de téléconsultation pour les patients éloignés",
+    "startDate": "2023-03-15",
+    "endDate": null,
+    "status": "active",
+    "weight": "1.2"
+  }
+]
