@@ -33,8 +33,8 @@ export default function Sidebar({ open, currentPath }: SidebarProps) {
       icon: <LayoutDashboard className="w-5 h-5" />,
     },
     {
-      title: "Simulation revenus",
-      href: "/revenue-simulation",
+      title: "Revenus",
+      href: "/revenues",
       icon: <ChartLine className="w-5 h-5" />,
     },
     {

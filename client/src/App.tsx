@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
-import RevenueSimulation from "@/pages/revenue-simulation";
+import Revenues from "@/pages/revenues";
 import Associates from "@/pages/associates";
 import Expenses from "@/pages/expenses";
 import Distribution from "@/pages/distribution";
@@ -19,7 +19,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
-      <Route path="/revenue-simulation" component={RevenueSimulation} />
+      <Route path="/revenues" component={Revenues} />
       <Route path="/associates" component={Associates} />
       <Route path="/expenses" component={Expenses} />
       <Route path="/rcp-meetings" component={RcpMeetings} />

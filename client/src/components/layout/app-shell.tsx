@@ -18,8 +18,8 @@ export default function AppShell({ children }: AppShellProps) {
     switch (location) {
       case "/":
         return "Tableau de bord";
-      case "/revenue-simulation":
-        return "Simulation des revenus";
+      case "/revenues":
+        return "Revenus";
       case "/associates":
         return "Gestion des associés";
       case "/expenses":
