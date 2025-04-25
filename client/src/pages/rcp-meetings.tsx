@@ -283,7 +283,7 @@ export default function RcpMeetings() {
       updateAttendanceMutation.mutate({ id: attendanceId, attended: isPresent });
     } else if (selectedMeetingId) {
       // Vérifier si l'associé est déjà assigné à cette réunion
-      const existingAttendance = attendances.find((a: any) => a.associate_id === associateId);
+      const existingAttendance = attendances.find((a: any) => a.associateId === associateId);
       
       if (existingAttendance) {
         // Si l'associé est déjà assigné, mettre à jour sa présence au lieu d'en créer une nouvelle
@@ -307,19 +307,16 @@ export default function RcpMeetings() {
 
   // Vérifier si un associé est présent à la réunion sélectionnée
   const isAssociatePresent = (associateId: number) => {
-    // Chercher d'abord avec associate_id (version snake_case, pour compatibilité)
-    const attendance = attendances.find((a: any) => 
-      (a.associate_id === associateId) || (a.associateId === associateId)
-    );
+    // Maintenant nous utilisons uniquement associateId (camelCase)
+    const attendance = attendances.find((a: any) => a.associateId === associateId);
+    console.log(`Vérifie présence pour l'associé ${associateId}:`, attendance ? `Présent (${attendance.id})` : 'Absent');
     return attendance ? attendance.attended : false;
   };
 
   // Obtenir l'ID de présence pour un associé
   const getAttendanceId = (associateId: number) => {
-    // Chercher d'abord avec associate_id (version snake_case, pour compatibilité)
-    const attendance = attendances.find((a: any) => 
-      (a.associate_id === associateId) || (a.associateId === associateId)
-    );
+    // Maintenant nous utilisons uniquement associateId (camelCase)
+    const attendance = attendances.find((a: any) => a.associateId === associateId);
     return attendance ? attendance.id : null;
   };
 
