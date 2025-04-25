@@ -56,10 +56,23 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     const allRevenues = await storage.getRevenues();
     const expenses = await storage.getExpenses();
     const associates = await storage.getAssociates();
-    const rcpMeetings = await storage.getRcpMeetings('');
-    const rcpAttendances = await storage.getRcpAttendances('');
+    const rcpMeetings = await storage.getRcpMeetings();
+    
+    // Récupérer les présences RCP pour toutes les réunions
+    let rcpAttendances: any[] = [];
+    for (const meeting of rcpMeetings) {
+      const meetingAttendances = await storage.getRcpAttendances(meeting.id);
+      rcpAttendances = [...rcpAttendances, ...meetingAttendances];
+    }
+    
     const projects = await storage.getProjects();
-    const projectAssignments = await storage.getProjectAssignments('');
+    
+    // Récupérer les assignations de projets pour tous les projets
+    let projectAssignments: any[] = [];
+    for (const project of projects) {
+      const assignments = await storage.getProjectAssignments(project.id);
+      projectAssignments = [...projectAssignments, ...assignments];
+    }
     
     // 3. Calculer les revenus et dépenses
     const aciRevenues = allRevenues.filter(rev => rev.category === 'ACI');
