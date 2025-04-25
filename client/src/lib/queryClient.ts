@@ -8,12 +8,15 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest(
-  url: string,
   method: string = 'GET',
+  url: string,
   data?: unknown | undefined,
 ): Promise<any> {
+  // Convertir la méthode en minuscules pour éviter les problèmes de token HTTP
+  const normalizedMethod = method.toLowerCase();
+  
   const res = await fetch(url, {
-    method,
+    method: normalizedMethod,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",

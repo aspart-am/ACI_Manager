@@ -43,10 +43,10 @@ export default function Settings() {
     try {
       setIsUpdating(true);
       
-      // Update each setting
-      await apiRequest("PATCH", `/api/settings/aci_manager_weight`, { value: managerWeight.toString() });
-      await apiRequest("PATCH", `/api/settings/rcp_attendance_weight`, { value: rcpWeight.toString() });
-      await apiRequest("PATCH", `/api/settings/project_contribution_weight`, { value: projectWeight.toString() });
+      // Utiliser "patch" en minuscules au lieu de "PATCH" pour éviter l'erreur HTTP token
+      await apiRequest("patch", `/api/settings/aci_manager_weight`, { value: managerWeight.toString() });
+      await apiRequest("patch", `/api/settings/rcp_attendance_weight`, { value: rcpWeight.toString() });
+      await apiRequest("patch", `/api/settings/project_contribution_weight`, { value: projectWeight.toString() });
       
       // Invalidate queries to refresh data
       await queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
@@ -58,6 +58,7 @@ export default function Settings() {
         variant: "default",
       });
     } catch (error) {
+      console.error("Erreur lors de la mise à jour des paramètres:", error);
       toast({
         title: "Erreur",
         description: "Une erreur est survenue lors de la mise à jour des paramètres.",
@@ -70,7 +71,8 @@ export default function Settings() {
 
   const updateSetting = async (key: string, value: string) => {
     try {
-      await apiRequest("PATCH", `/api/settings/${key}`, { value });
+      // Utiliser "patch" en minuscules au lieu de "PATCH" pour éviter l'erreur HTTP token
+      await apiRequest("patch", `/api/settings/${key}`, { value });
       await queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
       
       toast({
@@ -79,6 +81,7 @@ export default function Settings() {
         variant: "default",
       });
     } catch (error) {
+      console.error(`Erreur lors de la mise à jour du paramètre ${key}:`, error);
       toast({
         title: "Erreur",
         description: `Une erreur est survenue lors de la mise à jour du paramètre ${key}.`,
