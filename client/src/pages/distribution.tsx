@@ -151,8 +151,8 @@ export default function Distribution() {
   // Sort bar chart data by total amount descending
   barChartData.sort((a, b) => b.total - a.total);
   
-  // Slice only top 10 associates for better visualization
-  const topAssociatesData = barChartData.slice(0, 10);
+  // Garder tous les associés pour la visualisation complète
+  const allAssociatesData = barChartData;
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -212,82 +212,37 @@ export default function Distribution() {
         isLoading={isLoading}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="md:col-span-2">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-medium">Répartition actuelle</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-blue-600 hover:text-blue-800 p-0"
-                onClick={() => setIsHelpModalOpen(true)}
-              >
-                <Info className="h-4 w-4 mr-1" /> Comprendre la répartition
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-500 mb-4">
-              La répartition est calculée selon les paramètres définis dans les réglages et prend en compte
-              le statut de gérant, la participation aux réunions (RCP) et l'implication dans les projets.
-            </p>
-            
-            <div className="mt-4">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-[300px]">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : (
-                <DistributionTable distribution={formattedDistribution} />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Visualisation</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-medium">Répartition actuelle</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-blue-600 hover:text-blue-800 p-0"
+              onClick={() => setIsHelpModalOpen(true)}
+            >
+              <Info className="h-4 w-4 mr-1" /> Comprendre la répartition
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-500 mb-4">
+            La répartition est calculée selon les paramètres définis dans les réglages et prend en compte
+            le statut de gérant, la participation aux réunions (RCP) et l'implication dans les projets.
+          </p>
+          
+          <div className="mt-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-[300px]">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
-            ) : pieChartData.length > 0 ? (
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {pieChartData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value: number) => formatCurrency(value)}
-                      labelFormatter={(name) => `Montant`}
-                    />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                Aucune donnée disponible
-              </div>
+              <DistributionTable distribution={formattedDistribution} />
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="px-6 py-4 border-b border-gray-200">
@@ -318,13 +273,13 @@ export default function Distribution() {
                   <div className="flex items-center justify-center h-[300px]">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   </div>
-                ) : topAssociatesData.length > 0 ? (
-                  <div className="h-[400px]">
+                ) : allAssociatesData.length > 0 ? (
+                  <div className="h-[500px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
-                        data={topAssociatesData}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
-                        barSize={20}
+                        data={allAssociatesData}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 100 }}
+                        barSize={15}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis 
