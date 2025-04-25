@@ -66,7 +66,14 @@ export default function ExpenseForm({
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues,
+    defaultValues: {
+      category: defaultValues.category || "",
+      description: defaultValues.description || "",
+      amount: defaultValues.amount || 0,
+      date: defaultValues.date || new Date(),
+      isRecurring: defaultValues.isRecurring || false,
+      frequency: defaultValues.frequency || "monthly",
+    },
   });
 
   const isRecurring = form.watch("isRecurring");
