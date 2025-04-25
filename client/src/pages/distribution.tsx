@@ -10,7 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   PieChart,
   Pie,
+  BarChart,
+  Bar,
   Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   ResponsiveContainer,
   Legend,
   Tooltip
@@ -133,6 +138,21 @@ export default function Distribution() {
     profession: item.profession,
     isManager: item.isManager
   })) || [];
+  
+  // Prepare data for bar chart - distribution breakdown by associate
+  const barChartData = distributionData?.associateShares?.map((item: any) => ({
+    name: item.associateName.split(' ')[0], // Prendre juste le prénom pour l'axe X
+    base: parseFloat(item.baseShare),
+    rcp: parseFloat(item.rcpShare),
+    projet: parseFloat(item.projectShare),
+    total: parseFloat(item.totalShare)
+  })) || [];
+  
+  // Sort bar chart data by total amount descending
+  barChartData.sort((a, b) => b.total - a.total);
+  
+  // Slice only top 10 associates for better visualization
+  const topAssociatesData = barChartData.slice(0, 10);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -280,50 +300,119 @@ export default function Distribution() {
           </div>
         </CardHeader>
         <CardContent className="p-6">
-          <Tabs defaultValue="overview" className="space-y-4">
+          <Tabs defaultValue="distribution" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="overview">Vue générale</TabsTrigger>
+              <TabsTrigger value="distribution">Répartition</TabsTrigger>
               <TabsTrigger value="rcp">Présence RCP</TabsTrigger>
               <TabsTrigger value="projects">Implication projets</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="overview">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Statut de gérant</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-gray-800">×{managerWeight}</div>
-                    <p className="mt-2 text-sm text-gray-500">
-                      Les gérants bénéficient d'une pondération supplémentaire reflétant leurs responsabilités accrues.
-                    </p>
-                  </CardContent>
-                </Card>
+            <TabsContent value="distribution">
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Ce graphique présente la répartition des rémunérations pour les associés, 
+                  ventilée par type de contribution (part fixe, présence RCP, et implication dans les projets).
+                </p>
                 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Présence RCP</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-gray-800">×{rcpWeight}</div>
-                    <p className="mt-2 text-sm text-gray-500">
-                      Pondération appliquée pour la participation aux Réunions de Concertation Pluriprofessionnelle.
-                    </p>
-                  </CardContent>
-                </Card>
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-[300px]">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : topAssociatesData.length > 0 ? (
+                  <div className="h-[400px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={topAssociatesData}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                        barSize={20}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="name" 
+                          angle={-45} 
+                          textAnchor="end"
+                          height={80}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis 
+                          tickFormatter={(value) => `${value.toLocaleString('fr-FR')} €`}
+                        />
+                        <Tooltip 
+                          formatter={(value: number) => [`${value.toLocaleString('fr-FR')} €`, ""]}
+                          labelFormatter={(name) => `Associé: ${name}`}
+                        />
+                        <Legend
+                          verticalAlign="top"
+                          wrapperStyle={{ paddingBottom: "10px" }}
+                        />
+                        <Bar 
+                          dataKey="base" 
+                          name="Part fixe (50%)" 
+                          stackId="a" 
+                          fill="#0063A3" 
+                        />
+                        <Bar 
+                          dataKey="rcp" 
+                          name="Part RCP (25%)" 
+                          stackId="a" 
+                          fill="#00A3D9" 
+                        />
+                        <Bar 
+                          dataKey="projet" 
+                          name="Part Projets (25%)" 
+                          stackId="a" 
+                          fill="#00E396" 
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                    Aucune donnée disponible
+                  </div>
+                )}
                 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Projets MSP</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-gray-800">×{projectWeight}</div>
-                    <p className="mt-2 text-sm text-gray-500">
-                      Pondération pour l'implication dans les projets et les tâches accomplies.
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="flex justify-between items-center mt-8 mb-4">
+                  <h3 className="text-lg font-semibold">Paramètres actuels</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="bg-gray-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">Facteur cogérant</h4>
+                          <p className="text-sm text-gray-500">Associés gérants</p>
+                        </div>
+                        <span className="text-lg font-bold">×{managerWeight}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">Part RCP</h4>
+                          <p className="text-sm text-gray-500">Du revenu net</p>
+                        </div>
+                        <span className="text-lg font-bold">{Number(fixedRevenueShare) * 0.5 * 100}%</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">Part Projets</h4>
+                          <p className="text-sm text-gray-500">Du revenu net</p>
+                        </div>
+                        <span className="text-lg font-bold">{Number(fixedRevenueShare) * 0.5 * 100}%</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </TabsContent>
             
