@@ -731,6 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/distribution/calculation", async (req, res) => {
     try {
       // Utiliser le nouveau système de calcul de distribution
+      const { calculateDistribution } = await import('./new-distribution-calculator');
       const distributionResult = await calculateDistribution();
       res.json(distributionResult);
     } catch (error) {

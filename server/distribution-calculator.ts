@@ -150,7 +150,8 @@ function getProperty(obj: DynamicObject, baseProperty: string, idSuffix: boolean
 export async function calculateDistribution(): Promise<DistributionResult> {
   try {
     console.log("======== Début du calcul de distribution ========");
-    // 1. Récupérer les paramètres nécessaires
+    
+    // 1. Récupérer tous les paramètres nécessaires
     const fixedShareSetting = await storage.getSetting('fixed_revenue_share');
     const rcpShareSetting = await storage.getSetting('rcp_share');
     const projectShareSetting = await storage.getSetting('project_share');
@@ -162,33 +163,33 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     const projectSharePercentage = parseFloat(projectShareSetting?.value || '0.25');
     const managerWeight = parseFloat(managerWeightSetting?.value || '1.5');
     
-    // 2. Récupérer les revenus ACI
+    console.log(`Répartition des revenus: ${fixedSharePercentage*100}% fixe, ${rcpSharePercentage*100}% RCP, ${projectSharePercentage*100}% projets`);
+    console.log(`Coefficient managers: ${managerWeight}`);
+    
+    // 2. Charger toutes les données nécessaires
     const allRevenues = await storage.getRevenues();
+    const expenses = await storage.getExpenses();
+    const associates = await storage.getAssociates();
+    const allRcpMeetings = await storage.getRcpMeetings();
+    const allRcpAttendances = await storage.getRcpAttendances();
+    const allProjects = await storage.getProjects();
+    const allProjectAssignments = await storage.getProjectAssignments();
+    
+    // 3. Calculer les revenus et dépenses
     const aciRevenues = allRevenues.filter(rev => rev.category === 'ACI');
     const totalAciRevenue = aciRevenues.reduce((sum, rev) => sum + parseFloat(rev.amount), 0);
-    
-    // 3. Récupérer tous les revenus
     const totalRevenue = allRevenues.reduce((sum, rev) => sum + parseFloat(rev.amount), 0);
-    
-    // 4. Récupérer toutes les dépenses
-    const expenses = await storage.getExpenses();
     const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
     
-    // 5. Calculer le montant net à distribuer (revenu ACI - dépenses)
+    // 4. Calculer le montant net à distribuer (revenu ACI - dépenses)
     const netAmount = totalAciRevenue - totalExpenses;
     
-    if (netAmount <= 0) {
-      return {
-        totalAciRevenue,
-        totalRevenue,
-        associateShares: []
-      };
-    }
+    console.log(`Revenus ACI: ${totalAciRevenue} €`);
+    console.log(`Total des dépenses: ${totalExpenses} €`);
+    console.log(`Montant net à distribuer: ${netAmount} €`);
     
-    // 6. Récupérer tous les associés
-    const associates = await storage.getAssociates();
-    
-    if (associates.length === 0) {
+    // 5. Vérifier qu'il y a un montant positif à distribuer et des associés
+    if (netAmount <= 0 || associates.length === 0) {
       return {
         totalAciRevenue,
         totalRevenue,
@@ -301,14 +302,15 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     const currentYear = new Date().getFullYear();
     
     // 9.2 Récupérer tous les projets actifs
-    const projectsResult = await query("SELECT * FROM projects WHERE status = 'active'");
-    const projects: Project[] = projectsResult.rows;
+    const allProjects = await storage.getProjects();
+    const projects = allProjects.filter(p => p.status === 'active');
     
     // 9.3 Récupérer toutes les missions accessoires actives pour l'année courante
     let accessoryMissions: AccessoryMission[] = [];
     try {
-      const accessoryMissionsResult = await query("SELECT * FROM accessory_missions WHERE status = 'active' AND year = $1", [currentYear]);
-      accessoryMissions = accessoryMissionsResult.rows;
+      // Pour l'instant, nous n'avons pas implémenté les missions accessoires dans MemStorage
+      // Donc nous les ignorons pour le moment
+      console.log("Table accessory_missions non disponible, ignorée dans le calcul");
     } catch (error) {
       console.log("Table accessory_missions non disponible, ignorée dans le calcul");
       // La table n'existe pas encore, ignorer pour le moment
@@ -325,8 +327,7 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       // 9.6 Traiter les projets réguliers
       if (projects.length > 0) {
         // Récupérer toutes les affectations de projet
-        const projectAssignmentsResult = await query("SELECT * FROM project_assignments");
-        const projectAssignments: ProjectAssignment[] = projectAssignmentsResult.rows;
+        const projectAssignments = await storage.getProjectAssignments();
         
         // Pour debug: Afficher l'exemple d'une affectation et ses propriétés
         if (projectAssignments.length > 0) {
