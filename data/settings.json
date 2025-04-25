@@ -32,6 +32,20 @@
     "key": "manager_weight",
     "value": "1.5",
     "category": "distribution",
-    "description": "Coefficient de pondération pour les gérants"
+    "description": "Coefficient de pondération pour les gérants (doublon)"
+  },
+  {
+    "id": 6,
+    "key": "rcp_attendance_weight",
+    "value": "0.8",
+    "category": "distribution",
+    "description": "Facteur de pondération pour la présence aux RCP"
+  },
+  {
+    "id": 7,
+    "key": "project_contribution_weight",
+    "value": "1.2",
+    "category": "distribution",
+    "description": "Facteur de pondération pour l'implication dans les projets"
   }
 ]
