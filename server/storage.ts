@@ -868,9 +868,10 @@ export class MemStorage implements IStorage {
     // Importer les données de professionnels de santé si disponibles
     if (this.associates.length === 0) {
       try {
-        const professionnelsPath = path.join(__dirname, '../attached_assets/professionnels_sante.json');
-        if (fs.existsSync(professionnelsPath)) {
-          const professionnels = JSON.parse(fs.readFileSync(professionnelsPath, 'utf8'));
+        // Essayer d'abord avec le fichier formaté
+        const professionnelsFormattedPath = path.join(__dirname, '../data/professionnels_sante_formatted.json');
+        if (fs.existsSync(professionnelsFormattedPath)) {
+          const professionnels = JSON.parse(fs.readFileSync(professionnelsFormattedPath, 'utf8'));
           if (Array.isArray(professionnels)) {
             let id = 1;
             for (const prof of professionnels) {
@@ -885,8 +886,62 @@ export class MemStorage implements IStorage {
               });
             }
             this.saveJsonFile('associates.json', this.associates);
-            console.log(`Importation de ${this.associates.length} professionnels de santé`);
+            console.log(`Importation de ${this.associates.length} professionnels de santé depuis le fichier formaté`);
           }
+        } else {
+          console.log("Aucun fichier formaté trouvé, ajout des données par défaut");
+          
+          // Ajouter quelques professionnels par défaut
+          this.associates = [
+            {
+              id: 1,
+              name: "Dr. Martin Dupont",
+              profession: "Médecin",
+              isManager: true,
+              joinDate: "2022-01-01",
+              patientCount: 425,
+              participationWeight: "1.5"
+            },
+            {
+              id: 2,
+              name: "Agnès Laurent",
+              profession: "Pharmacien",
+              isManager: true,
+              joinDate: "2022-01-01",
+              patientCount: null,
+              participationWeight: "1.5"
+            },
+            {
+              id: 3,
+              name: "Émilie Bernard",
+              profession: "Infirmière",
+              isManager: false,
+              joinDate: "2022-01-01",
+              patientCount: null,
+              participationWeight: "1.0"
+            },
+            {
+              id: 4,
+              name: "Martine Collier",
+              profession: "Kinésithérapeute",
+              isManager: true,
+              joinDate: "2022-01-01",
+              patientCount: null,
+              participationWeight: "1.5"
+            },
+            {
+              id: 5,
+              name: "Julien Moreau",
+              profession: "Dentiste",
+              isManager: false,
+              joinDate: "2022-01-01",
+              patientCount: 280,
+              participationWeight: "1.0"
+            }
+          ];
+          
+          this.saveJsonFile('associates.json', this.associates);
+          console.log(`Ajout de ${this.associates.length} professionnels de santé par défaut`);
         }
       } catch (error) {
         console.error('Erreur lors de l\'importation des professionnels de santé:', error);

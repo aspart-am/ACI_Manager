@@ -1,1 +1,200 @@
-[]
+[
+  {
+    "id": 1,
+    "name": "ESPARSA Florian",
+    "profession": "Médecin",
+    "isManager": true,
+    "joinDate": "2022-01-01",
+    "patientCount": 425,
+    "participationWeight": "1.5"
+  },
+  {
+    "id": 2,
+    "name": "LAFITTE Jean Yves",
+    "profession": "Médecin",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": 380,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 3,
+    "name": "RAIMBAULT MALLET Marie",
+    "profession": "Médecin",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": 412,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 4,
+    "name": "BOURVEN Margot",
+    "profession": "Médecin",
+    "isManager": false,
+    "joinDate": "2022-02-15",
+    "patientCount": 320,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 5,
+    "name": "LALIS Agnès",
+    "profession": "Pharmacien",
+    "isManager": true,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.5"
+  },
+  {
+    "id": 6,
+    "name": "FERRON Valérie",
+    "profession": "Pharmacien",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 7,
+    "name": "GAYRIN Esther",
+    "profession": "Pharmacien",
+    "isManager": false,
+    "joinDate": "2022-03-10",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 8,
+    "name": "GABORIAU Sandrine",
+    "profession": "Infirmière",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 9,
+    "name": "POQUIN Sylvie",
+    "profession": "Infirmière",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 10,
+    "name": "CHEMIN Emilie",
+    "profession": "Infirmière",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 11,
+    "name": "BLAY Séverine",
+    "profession": "Infirmière",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 12,
+    "name": "TETAUD Virginie",
+    "profession": "Infirmière",
+    "isManager": false,
+    "joinDate": "2022-02-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 13,
+    "name": "ARNAUD Marjorie",
+    "profession": "Infirmière",
+    "isManager": false,
+    "joinDate": "2022-04-15",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 14,
+    "name": "ARNAUD Sarah",
+    "profession": "Infirmière",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 15,
+    "name": "LELIEVRE Mélanie",
+    "profession": "Infirmière",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 16,
+    "name": "COLLADO Marta",
+    "profession": "Kinésithérapeute",
+    "isManager": true,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.5"
+  },
+  {
+    "id": 17,
+    "name": "CHAPELIER Ludovic",
+    "profession": "Kinésithérapeute",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 18,
+    "name": "MOREL Emilie",
+    "profession": "Kinésithérapeute",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 19,
+    "name": "SALIERNO Alexandra",
+    "profession": "Kinésithérapeute",
+    "isManager": false,
+    "joinDate": "2022-05-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 20,
+    "name": "LOPEZ Julien",
+    "profession": "Dentiste",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": 280,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 21,
+    "name": "EGRETEAU Emmanuelle",
+    "profession": "Pédicure podologue",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  },
+  {
+    "id": 22,
+    "name": "CHAUVEL Pascal",
+    "profession": "Pédicure podologue",
+    "isManager": false,
+    "joinDate": "2022-01-01",
+    "patientCount": null,
+    "participationWeight": "1.0"
+  }
+]

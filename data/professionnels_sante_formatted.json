@@ -1,0 +1,200 @@
+[
+    {
+        "nom": "ESPARSA Florian",
+        "profession": "Médecin",
+        "email": "dr.esparsa@gmail.com",
+        "telephone": "620464238",
+        "isManager": true,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": 425
+    },
+    {
+        "nom": "LAFITTE Jean Yves",
+        "profession": "Médecin",
+        "email": "jylafitte@gmail.com",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": 380
+    },
+    {
+        "nom": "RAIMBAULT MALLET Marie",
+        "profession": "Médecin",
+        "email": "m.raimbault80@hotmail.fr",
+        "telephone": "762458652",
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": 412
+    },
+    {
+        "nom": "BOURVEN Margot",
+        "profession": "Médecin",
+        "email": "margot.bourven@gmail.com",
+        "telephone": "649529100",
+        "isManager": false,
+        "dateArrivee": "2022-02-15",
+        "nbPatients": 320
+    },
+    {
+        "nom": "LALIS Agnès",
+        "profession": "Pharmacien",
+        "email": "alalis@totum.fr",
+        "telephone": "662279867",
+        "isManager": true,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "FERRON Valérie",
+        "profession": "Pharmacien",
+        "email": "valerie.ferron@laposte.net",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "GAYRIN Esther",
+        "profession": "Pharmacien",
+        "email": "esther.gayrin@outlook.com",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-03-10",
+        "nbPatients": null
+    },
+    {
+        "nom": "GABORIAU Sandrine",
+        "profession": "Infirmière",
+        "email": "sandrine-gaboriau@sfr.fr",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "POQUIN Sylvie",
+        "profession": "Infirmière",
+        "email": "poquin.sylvie17@orange.fr",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "CHEMIN Emilie",
+        "profession": "Infirmière",
+        "email": "chemin.emilie17@gmail.com",
+        "telephone": "682120123",
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "BLAY Séverine",
+        "profession": "Infirmière",
+        "email": "severine.blay@gmail.com",
+        "telephone": "616456553",
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "TETAUD Virginie",
+        "profession": "Infirmière",
+        "email": "ninitetaud@live.fr",
+        "telephone": "680562395",
+        "isManager": false,
+        "dateArrivee": "2022-02-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "ARNAUD Marjorie",
+        "profession": "Infirmière",
+        "email": "marjoriearnaud764@gmail.com",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-04-15",
+        "nbPatients": null
+    },
+    {
+        "nom": "ARNAUD Sarah",
+        "profession": "Infirmière",
+        "email": "saraharnaud@orange.fr",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "LELIEVRE Mélanie",
+        "profession": "Infirmière",
+        "email": "lelievremelaniee@gmail.com",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "COLLADO Marta",
+        "profession": "Kinésithérapeute",
+        "email": "martaccollado@hotmail.com",
+        "telephone": "783134547",
+        "isManager": true,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "CHAPELIER Ludovic",
+        "profession": "Kinésithérapeute",
+        "email": "ludovic.chapelier@yahoo.fr",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "MOREL Emilie",
+        "profession": "Kinésithérapeute",
+        "email": "emi-toy@hotmail.fr",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "SALIERNO Alexandra",
+        "profession": "Kinésithérapeute",
+        "email": "alexsalierno@hotmail.com",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-05-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "LOPEZ Julien",
+        "profession": "Dentiste",
+        "email": "julienlopez.dentiste@gmail.com",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": 280
+    },
+    {
+        "nom": "EGRETEAU Emmanuelle",
+        "profession": "Pédicure podologue",
+        "email": "egreteau.podologue@gmail.com",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    },
+    {
+        "nom": "CHAUVEL Pascal",
+        "profession": "Pédicure podologue",
+        "email": "chavelpascal@icloud.com",
+        "telephone": null,
+        "isManager": false,
+        "dateArrivee": "2022-01-01",
+        "nbPatients": null
+    }
+]
