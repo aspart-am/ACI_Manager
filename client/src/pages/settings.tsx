@@ -157,12 +157,12 @@ export default function Settings() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <Label className="text-base">Facteur présence RCP</Label>
+                        <Label className="text-base">Pourcentage RCP</Label>
                         <p className="text-sm text-muted-foreground">
-                          Pondération pour la présence aux Réunions de Concertation Pluriprofessionnelle
+                          Part des revenus nets attribuée en fonction de la présence aux RCP
                         </p>
                       </div>
-                      <span className="font-bold text-lg">×{rcpWeight.toFixed(1)}</span>
+                      <span className="font-bold text-lg">{(rcpWeight/4*100).toFixed(0)}%</span>
                     </div>
                     <Slider
                       value={[rcpWeight * 10]}
@@ -175,20 +175,20 @@ export default function Settings() {
                       }}
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>×0.0</span>
-                      <span>×2.0</span>
+                      <span>0%</span>
+                      <span>50%</span>
                     </div>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <Label className="text-base">Facteur projet</Label>
+                        <Label className="text-base">Pourcentage projets</Label>
                         <p className="text-sm text-muted-foreground">
-                          Pondération pour l'implication dans les projets et tâches de la MSP
+                          Part des revenus nets attribuée en fonction de l'implication dans les projets
                         </p>
                       </div>
-                      <span className="font-bold text-lg">×{projectWeight.toFixed(1)}</span>
+                      <span className="font-bold text-lg">{(projectWeight/4*100).toFixed(0)}%</span>
                     </div>
                     <Slider
                       value={[projectWeight * 10]}
@@ -201,8 +201,8 @@ export default function Settings() {
                       }}
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>×0.0</span>
-                      <span>×3.0</span>
+                      <span>0%</span>
+                      <span>75%</span>
                     </div>
                   </div>
 
