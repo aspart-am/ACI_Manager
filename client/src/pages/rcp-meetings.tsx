@@ -57,17 +57,27 @@ export default function RcpMeetings() {
   }) as { data: any[] };
 
   // Récupération des présences pour la réunion sélectionnée
-  const { data: attendances = [], refetch: refetchAttendances } = useQuery({
+  const { data: attendances = [], refetch: refetchAttendances, isLoading: isLoadingAttendances } = useQuery({
     queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
     enabled: !!selectedMeetingId,
-  }) as { data: any[], refetch: () => void };
+    // Activer le refetch automatique et réduire le staleTime pour plus de synchronisation
+    staleTime: 10000,
+    refetchInterval: 15000,
+  }) as { data: any[], refetch: () => void, isLoading: boolean };
   
   // Log des présences pour débogage
   React.useEffect(() => {
-    if (attendances.length > 0) {
-      console.log("Présences récupérées:", attendances);
+    if (attendances && Array.isArray(attendances)) {
+      console.log("Présences récupérées:", meetings.filter(m => m.id === selectedMeetingId), attendances);
     }
-  }, [attendances]);
+  }, [attendances, meetings, selectedMeetingId]);
+  
+  // Effet pour refetch les présences quand on change de réunion sélectionnée
+  React.useEffect(() => {
+    if (selectedMeetingId) {
+      refetchAttendances();
+    }
+  }, [selectedMeetingId, refetchAttendances]);
 
   // Récupération des données pour une réunion spécifique
   const { data: selectedMeeting } = useQuery({
@@ -115,8 +125,21 @@ export default function RcpMeetings() {
       });
     },
     onSuccess: () => {
+      // Invalider toutes les requêtes liées aux réunions
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId] });
+      
+      // Invalider également les présences pour mettre à jour le panneau des participants
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
+      
+      // Invalider le calcul de distribution qui dépend des réunions
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
+      // Refetch explicite des données après mise à jour
+      setTimeout(() => {
+        refetchAttendances();
+      }, 300);
+      
       toast({
         title: 'Réunion mise à jour',
         description: 'La réunion RCP a été modifiée avec succès.',
