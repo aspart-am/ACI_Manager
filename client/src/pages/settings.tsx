@@ -49,9 +49,9 @@ export default function Settings() {
       setIsUpdating(true);
       
       // Utiliser "patch" en minuscules au lieu de "PATCH" pour éviter l'erreur HTTP token
-      await apiRequest("patch", `/api/settings/aci_manager_weight`, { value: managerWeight.toString() });
-      await apiRequest("patch", `/api/settings/rcp_attendance_weight`, { value: rcpWeight.toString() });
-      await apiRequest("patch", `/api/settings/project_contribution_weight`, { value: projectWeight.toString() });
+      await apiRequest(`/api/settings/aci_manager_weight`, "PATCH", { value: managerWeight.toString() });
+      await apiRequest(`/api/settings/rcp_attendance_weight`, "PATCH", { value: rcpWeight.toString() });
+      await apiRequest(`/api/settings/project_contribution_weight`, "PATCH", { value: projectWeight.toString() });
       
       // Invalidate queries to refresh data
       await queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
@@ -76,8 +76,8 @@ export default function Settings() {
 
   const updateSetting = async (key: string, value: string) => {
     try {
-      // Utiliser "patch" en minuscules au lieu de "PATCH" pour éviter l'erreur HTTP token
-      await apiRequest("patch", `/api/settings/${key}`, { value });
+      // Utiliser la méthode PATCH pour mettre à jour les paramètres
+      await apiRequest(`/api/settings/${key}`, "PATCH", { value });
       await queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
       
       // Notification supprimée - les changements sont appliqués silencieusement
