@@ -14,5 +14,13 @@
     "amount": "7375",
     "date": "2023-02-15",
     "category": "ACI"
+  },
+  {
+    "id": 3,
+    "source": "CPAM",
+    "description": "",
+    "amount": "75600",
+    "date": "2025-04-25",
+    "category": "ACI"
   }
 ]
