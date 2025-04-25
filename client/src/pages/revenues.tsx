@@ -70,7 +70,12 @@ export default function Revenues() {
   // Mutation pour ajouter un revenu
   const addRevenueMutation = useMutation({
     mutationFn: (values: FormValues) => {
-      return apiRequest("/api/revenues", "POST", values);
+      // Convertir le montant en chaîne de caractères car le serveur s'attend à une chaîne
+      const formattedValues = {
+        ...values,
+        amount: values.amount.toString()
+      };
+      return apiRequest("/api/revenues", "POST", formattedValues);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/revenues"] });
