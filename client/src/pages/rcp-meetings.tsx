@@ -103,14 +103,20 @@ export default function RcpMeetings() {
   // Initialiser le formulaire d'édition quand une réunion est sélectionnée
   React.useEffect(() => {
     if (selectedMeeting) {
+      // Log pour débogage
+      console.log("Initialisation du formulaire d'édition avec:", selectedMeeting);
+      
       editForm.reset({
         date: selectedMeeting.date?.split('T')[0] || new Date().toISOString().split('T')[0],
         title: selectedMeeting.title || '',
         description: selectedMeeting.description || '',
         duration: selectedMeeting.duration || 60,
       });
+      
+      // Refetch explicite des présences quand une réunion est sélectionnée
+      refetchAttendances();
     }
-  }, [selectedMeeting, editForm]);
+  }, [selectedMeeting, editForm, refetchAttendances]);
   
   // Mutation pour modifier une réunion
   const updateMutation = useMutation({
@@ -726,13 +732,33 @@ export default function RcpMeetings() {
                     </AlertDescription>
                   </Alert>
                   
-                  <h3 className="text-lg font-medium flex items-center">
-                    <Users className="h-5 w-5 mr-2" />
-                    Liste des associés
-                  </h3>
-                  <Separator />
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-medium flex items-center">
+                      <Users className="h-5 w-5 mr-2" />
+                      Liste des participants
+                    </h3>
+                    <div className="text-sm text-blue-600 font-medium">
+                      {!isLoadingAttendances && selectedMeeting && (
+                        <span className="flex items-center">
+                          <Check className="h-4 w-4 mr-1" />
+                          {getPresentCount()} présent(s) / {associates.length} associés
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <Separator className="mb-4" />
                   
-                  {associates.length === 0 ? (
+                  {isLoadingAttendances ? (
+                    // Affichage pendant le chargement
+                    <div className="py-8 space-y-4">
+                      <div className="animate-pulse flex justify-center">
+                        <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+                      </div>
+                      <p className="text-center text-sm text-muted-foreground">
+                        Chargement des données de présence...
+                      </p>
+                    </div>
+                  ) : associates.length === 0 ? (
                     <div className="text-center p-8 bg-gray-50 rounded border">
                       <p>Aucun associé trouvé. Veuillez ajouter des associés dans la section "Associés".</p>
                     </div>
