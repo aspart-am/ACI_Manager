@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { calculateDistribution } from "./distribution-calculator";
 import { z } from "zod";
 import { 
   insertAssociateSchema,
@@ -682,24 +681,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Route de débogage pour les présences RCP
   app.get("/api/debug/rcp-data", async (req, res) => {
     try {
-      const { query } = await import('./db');
-      
       // Récupérer toutes les réunions RCP
-      const rcpMeetingsResult = await query("SELECT * FROM rcp_meetings");
-      const rcpMeetings = rcpMeetingsResult.rows;
+      const rcpMeetings = await storage.getRcpMeetings();
       
-      // Récupérer toutes les présences (sans filtre)
-      const rcpAttendancesResult = await query("SELECT * FROM rcp_attendance");
-      const rcpAttendances = rcpAttendancesResult.rows;
+      // Récupérer toutes les présences
+      let rcpAttendances: any[] = [];
+      for (const meeting of rcpMeetings) {
+        const meetingAttendances = await storage.getRcpAttendances(meeting.id);
+        rcpAttendances = [...rcpAttendances, ...meetingAttendances];
+      }
       
       // Récupérer les présences avec attended = true
-      const rcpAttendancesTrueResult = await query("SELECT * FROM rcp_attendance WHERE attended = true");
-      const rcpAttendancesTrue = rcpAttendancesTrueResult.rows;
+      const rcpAttendancesTrue = rcpAttendances.filter(a => a.attended === true);
       
       // Résumé des présences par réunion
       const attendanceByMeeting: Record<string, any> = {};
       rcpMeetings.forEach(meeting => {
-        const meetingAttendances = rcpAttendances.filter(a => a.rcp_id === meeting.id);
+        const meetingAttendances = rcpAttendances.filter(a => 
+          (a.rcpId === meeting.id) || (a.rcp_id === meeting.id)
+        );
         const presentAttendances = meetingAttendances.filter(a => a.attended === true);
         
         attendanceByMeeting[meeting.id] = {
@@ -743,19 +743,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Route de débogage pour les missions accessoires
   app.get("/api/debug/missions-data", async (req, res) => {
     try {
-      const { query } = await import('./db');
-      
       // Récupérer les missions accessoires
-      const missionsResult = await query("SELECT * FROM accessory_missions");
-      const missions = missionsResult.rows;
+      const missions = await storage.getAccessoryMissions();
       
-      // Récupérer les assignations
-      const assignmentsResult = await query("SELECT * FROM mission_assignments");
-      const assignments = assignmentsResult.rows;
+      // Récupérer les assignations pour toutes les missions
+      let assignments: any[] = [];
+      for (const mission of missions) {
+        const missionAssignments = await storage.getMissionAssignments(mission.id);
+        assignments = [...assignments, ...missionAssignments];
+      }
       
       // Vérifier les correspondances
       const matchReport = assignments.map(assignment => {
-        const missionIdNum = Number(assignment.mission_id);
+        const missionIdNum = Number(assignment.missionId || assignment.mission_id);
         const matchingMission = missions.find(m => Number(m.id) === missionIdNum);
         
         return {
@@ -766,7 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             title: matchingMission.title,
             budget: matchingMission.budget
           } : null,
-          typeofMissionId: typeof assignment.mission_id,
+          typeofMissionId: typeof (assignment.missionId || assignment.mission_id),
           typeofMissionsIds: missions.map(m => ({ id: m.id, type: typeof m.id }))
         };
       });
