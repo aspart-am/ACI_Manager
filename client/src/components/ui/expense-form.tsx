@@ -75,16 +75,22 @@ export default function ExpenseForm({
     try {
       setIsSubmitting(true);
       
+      // Convertir le montant en chaîne de caractères comme attendu par le schéma
+      const formattedData = {
+        ...data,
+        amount: data.amount.toString() // Convertir en chaîne
+      };
+      
       if (isEdit && expenseId) {
         // Update existing expense
-        await apiRequest(`/api/expenses/${expenseId}`, "PATCH", data);
+        await apiRequest(`/api/expenses/${expenseId}`, "PATCH", formattedData);
         toast({
           title: "Charge mise à jour",
           description: "La charge a été modifiée avec succès.",
         });
       } else {
         // Create new expense
-        await apiRequest("/api/expenses", "POST", data);
+        await apiRequest("/api/expenses", "POST", formattedData);
         toast({
           title: "Charge ajoutée",
           description: "La nouvelle charge a été ajoutée avec succès.",
