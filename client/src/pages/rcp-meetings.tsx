@@ -436,7 +436,7 @@ export default function RcpMeetings() {
                           <span className="font-medium">{meeting.title}</span>
                           <span className="text-sm text-muted-foreground">{formatDate(meeting.date)}</span>
                           <Badge variant="outline" className="mt-1">
-                            {meeting.duration || 60} min
+                            {meeting.duration || 240} min
                           </Badge>
                         </div>
                       </Button>
@@ -465,7 +465,7 @@ export default function RcpMeetings() {
                   <CardDescription>
                     {selectedMeeting ? (
                       <>
-                        Durée: {selectedMeeting.duration || 60} minutes
+                        Durée: {selectedMeeting.duration || 240} minutes
                         {selectedMeeting.description && (
                           <p className="mt-2">{selectedMeeting.description}</p>
                         )}
