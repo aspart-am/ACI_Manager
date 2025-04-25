@@ -331,7 +331,19 @@ export default function Distribution() {
                   <h3 className="text-lg font-semibold">Paramètres actuels</h3>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card className="bg-gray-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">Part fixe</h4>
+                          <p className="text-sm text-gray-500">Du revenu net</p>
+                        </div>
+                        <span className="text-lg font-bold">{(100 - (Number(rcpWeight)/4*100) - (Number(projectWeight)/4*100)).toFixed(0)}%</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                
                   <Card className="bg-gray-50">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -351,7 +363,7 @@ export default function Distribution() {
                           <h4 className="font-medium">Part RCP</h4>
                           <p className="text-sm text-gray-500">Du revenu net</p>
                         </div>
-                        <span className="text-lg font-bold">{Number(fixedRevenueShare) * 0.5 * 100}%</span>
+                        <span className="text-lg font-bold">{(Number(rcpWeight)/4*100).toFixed(0)}%</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -363,7 +375,7 @@ export default function Distribution() {
                           <h4 className="font-medium">Part Projets</h4>
                           <p className="text-sm text-gray-500">Du revenu net</p>
                         </div>
-                        <span className="text-lg font-bold">{Number(fixedRevenueShare) * 0.5 * 100}%</span>
+                        <span className="text-lg font-bold">{(Number(projectWeight)/4*100).toFixed(0)}%</span>
                       </div>
                     </CardContent>
                   </Card>

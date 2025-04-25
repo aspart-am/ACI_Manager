@@ -37,6 +37,11 @@ export default function Settings() {
   const managerWeight = parseFloat(getSettingValue("aci_manager_weight", "1.5"));
   const rcpWeight = parseFloat(getSettingValue("rcp_attendance_weight", "0.8"));
   const projectWeight = parseFloat(getSettingValue("project_contribution_weight", "1.2"));
+  
+  // Calcul du pourcentage de la part fixe (complémentaire aux parts RCP et projets)
+  const rcpPercentage = rcpWeight / 4 * 100;
+  const projectPercentage = projectWeight / 4 * 100;
+  const fixedPercentage = 100 - rcpPercentage - projectPercentage;
 
   // Handle settings update
   const handleUpdateWeights = async () => {
@@ -75,11 +80,8 @@ export default function Settings() {
       await apiRequest("patch", `/api/settings/${key}`, { value });
       await queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
       
-      toast({
-        title: "Paramètre mis à jour",
-        description: `Le paramètre ${key} a été modifié avec succès.`,
-        variant: "default",
-      });
+      // Notification supprimée - les changements sont appliqués silencieusement
+      
     } catch (error) {
       console.error(`Erreur lors de la mise à jour du paramètre ${key}:`, error);
       toast({
@@ -128,6 +130,34 @@ export default function Settings() {
                 </div>
               ) : (
                 <>
+                  {/* Ajout d'un indicateur de répartition globale */}
+                  <div className="bg-gray-100 p-4 rounded-lg mb-4">
+                    <h3 className="font-medium text-base mb-3">Répartition des revenus nets</h3>
+                    <div className="flex items-center mb-2">
+                      <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                        <div className="flex h-full">
+                          <div className="bg-blue-700" style={{ width: `${fixedPercentage}%` }}></div>
+                          <div className="bg-blue-400" style={{ width: `${rcpPercentage}%` }}></div>
+                          <div className="bg-green-400" style={{ width: `${projectPercentage}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-blue-700 rounded-full mr-1"></div>
+                        <span>Part fixe: {fixedPercentage.toFixed(0)}%</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-blue-400 rounded-full mr-1"></div>
+                        <span>RCP: {rcpPercentage.toFixed(0)}%</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-green-400 rounded-full mr-1"></div>
+                        <span>Projets: {projectPercentage.toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
