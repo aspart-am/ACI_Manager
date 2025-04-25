@@ -200,8 +200,10 @@ export default function RcpMeetings() {
 
   // Mutation pour mettre à jour les présences
   const updateAttendanceMutation = useMutation({
-    mutationFn: ({ id, attended }: { id: number; attended: boolean }) => 
-      apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended }),
+    mutationFn: ({ id, attended }: { id: number; attended: boolean }) => {
+      console.log(`Mise à jour de la présence ${id} -> ${attended}`);
+      return apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended });
+    },
     onSuccess: () => {
       // Invalider les requêtes de réunions et de présences
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
@@ -212,22 +214,28 @@ export default function RcpMeetings() {
         description: 'La présence a été mise à jour avec succès.',
       });
       // Important: refetch les données après le succès
-      setTimeout(() => refetchAttendances(), 300);
+      setTimeout(() => refetchAttendances(), 500);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Erreur détaillée lors de la mise à jour de la présence:', error);
       toast({
         title: 'Erreur',
-        description: 'Impossible de mettre à jour la présence.',
+        description: error?.message || 'Impossible de mettre à jour la présence.',
         variant: 'destructive',
       });
-      console.error('Erreur lors de la mise à jour de la présence:', error);
     },
   });
 
   // Mutation pour créer une présence
   const createAttendanceMutation = useMutation({
-    mutationFn: ({ rcpId, associateId, attended }: { rcpId: number; associateId: number; attended: boolean }) => 
-      apiRequest('/api/rcp-attendances', 'POST', { rcpId, associateId, attended }),
+    mutationFn: ({ rcpId, associateId, attended }: { rcpId: number; associateId: number; attended: boolean }) => {
+      console.log(`Création d'une présence pour la réunion ${rcpId}, associé ${associateId}, présent: ${attended}`);
+      return apiRequest('/api/rcp-attendances', 'POST', { 
+        rcpId, 
+        associateId, 
+        attended 
+      });
+    },
     onSuccess: () => {
       // Invalider les requêtes de réunions et de présences
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
@@ -238,15 +246,15 @@ export default function RcpMeetings() {
         description: 'La présence a été ajoutée avec succès.',
       });
       // Important: refetch les données après le succès
-      setTimeout(() => refetchAttendances(), 300);
+      setTimeout(() => refetchAttendances(), 500);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Erreur détaillée lors de l\'ajout de la présence:', error);
       toast({
         title: 'Erreur',
-        description: 'Impossible d\'ajouter la présence.',
+        description: error?.message || 'Impossible d\'ajouter la présence.',
         variant: 'destructive',
       });
-      console.error('Erreur lors de l\'ajout de la présence:', error);
     },
   });
 
@@ -268,7 +276,7 @@ export default function RcpMeetings() {
     }
     
     // Vérifier que la réunion existe encore
-    const meetingExists = meetings.some((m: any) => m.id === selectedMeetingId);
+    const meetingExists = meetings && Array.isArray(meetings) && meetings.some((m: any) => m && m.id === selectedMeetingId);
     if (!meetingExists) {
       toast({
         title: 'Erreur',
@@ -279,20 +287,38 @@ export default function RcpMeetings() {
       return;
     }
     
-    if (attendanceId) {
-      // Mise à jour d'une présence existante
-      updateAttendanceMutation.mutate({ id: attendanceId, attended: isPresent });
-    } else if (selectedMeetingId) {
-      // Vérifier si l'associé est déjà assigné à cette réunion
-      const existingAttendance = attendances.find((a: any) => a.associateId === associateId);
-      
-      if (existingAttendance) {
-        // Si l'associé est déjà assigné, mettre à jour sa présence au lieu d'en créer une nouvelle
-        updateAttendanceMutation.mutate({ id: existingAttendance.id, attended: isPresent });
-      } else {
-        // Création d'une nouvelle présence
-        createAttendanceMutation.mutate({ rcpId: selectedMeetingId, associateId, attended: isPresent });
+    try {
+      if (attendanceId) {
+        // Mise à jour d'une présence existante
+        console.log(`Mise à jour d'une présence existante: ID ${attendanceId}, présent: ${isPresent}`);
+        updateAttendanceMutation.mutate({ id: attendanceId, attended: isPresent });
+      } else if (selectedMeetingId) {
+        // Vérifier si l'associé est déjà assigné à cette réunion
+        const existingAttendance = attendances && Array.isArray(attendances) 
+          ? attendances.find((a: any) => a && a.associateId === associateId)
+          : null;
+        
+        if (existingAttendance) {
+          // Si l'associé est déjà assigné, mettre à jour sa présence au lieu d'en créer une nouvelle
+          console.log(`Mise à jour d'une présence trouvée: ID ${existingAttendance.id}, présent: ${isPresent}`);
+          updateAttendanceMutation.mutate({ id: existingAttendance.id, attended: isPresent });
+        } else {
+          // Création d'une nouvelle présence
+          console.log(`Création d'une nouvelle présence: réunion ${selectedMeetingId}, associé ${associateId}, présent: ${isPresent}`);
+          createAttendanceMutation.mutate({ 
+            rcpId: selectedMeetingId, 
+            associateId, 
+            attended: isPresent 
+          });
+        }
       }
+    } catch (error) {
+      console.error("Erreur lors de la gestion des présences:", error);
+      toast({
+        title: 'Erreur',
+        description: 'Une erreur est survenue lors de la gestion des présences.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -668,7 +694,7 @@ export default function RcpMeetings() {
                   </div>
 
                   {/* Explication pour l'utilisateur */}
-                  <Alert variant="outline">
+                  <Alert>
                     <Info className="h-4 w-4" />
                     <AlertTitle>Gestion des présences</AlertTitle>
                     <AlertDescription>
