@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -144,10 +144,19 @@ export default function Distribution() {
   const managerWeightSetting = settings?.find((s: any) => s.key === "aci_manager_weight");
   const rcpWeightSetting = settings?.find((s: any) => s.key === "rcp_attendance_weight");
   const projectWeightSetting = settings?.find((s: any) => s.key === "project_contribution_weight");
+  const fixedRevenueShareSetting = settings?.find((s: any) => s.key === "fixed_revenue_share");
 
   const managerWeight = managerWeightSetting ? managerWeightSetting.value : "1.5";
   const rcpWeight = rcpWeightSetting ? rcpWeightSetting.value : "0.8";
   const projectWeight = projectWeightSetting ? projectWeightSetting.value : "1.2";
+  const fixedRevenueShare = fixedRevenueShareSetting ? fixedRevenueShareSetting.value : "0.5";
+  
+  // Automatiquement recalculer la distribution lorsque les paramètres changent
+  useEffect(() => {
+    if (managerWeightSetting || rcpWeightSetting || projectWeightSetting || fixedRevenueShareSetting) {
+      refetch();
+    }
+  }, [managerWeight, rcpWeight, projectWeight, fixedRevenueShare, refetch]);
 
   return (
     <div className="space-y-6">
