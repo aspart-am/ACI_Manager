@@ -77,15 +77,18 @@ interface DistributionData {
 
 export default function Distribution() {
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   
   // Fetch distribution calculation
   const { data: distributionData, isLoading: isLoadingDistribution, refetch } = useQuery<DistributionData>({
-    queryKey: ["/api/distribution/calculation"],
+    queryKey: ["/api/distribution/calculation", selectedYear],
+    queryFn: () => fetch(`/api/distribution/calculation?year=${selectedYear}`).then(res => res.json()),
   });
 
   // Fetch revenues data for summary cards
   const { data: revenues, isLoading: isLoadingRevenues } = useQuery({
-    queryKey: ["/api/revenues"],
+    queryKey: ["/api/revenues", selectedYear],
+    queryFn: () => fetch(`/api/revenues?year=${selectedYear}`).then(res => res.json()),
   });
 
   // Fetch expenses data for summary cards
@@ -182,7 +185,23 @@ export default function Distribution() {
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Répartition des rémunérations</h1>
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-2">
+          <div className="relative">
+            <select
+              className="border border-gray-300 rounded px-3 py-2 bg-white text-gray-700"
+              value={selectedYear}
+              onChange={(e) => {
+                setSelectedYear(parseInt(e.target.value));
+                // Déclenchera automatiquement une requête via useQuery
+              }}
+            >
+              {[2023, 2024, 2025, 2026, 2027].map((year) => (
+                <option key={year} value={year}>
+                  Année {year}
+                </option>
+              ))}
+            </select>
+          </div>
           <Button
             variant="outline"
             onClick={handleRecalculate}

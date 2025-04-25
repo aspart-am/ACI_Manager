@@ -179,8 +179,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== REVENUES ROUTES ==========
   app.get("/api/revenues", async (req, res) => {
     try {
-      const revenues = await storage.getRevenues();
-      res.json(revenues);
+      // Récupérer tous les revenus
+      const allRevenues = await storage.getRevenues();
+      
+      // Si un paramètre d'année est fourni, filtrer par année
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
+      
+      if (year) {
+        // Filtrer les revenus pour l'année spécifiée
+        const filteredRevenues = allRevenues.filter(
+          revenue => new Date(revenue.date).getFullYear() === year
+        );
+        return res.json(filteredRevenues);
+      }
+      
+      res.json(allRevenues);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch revenues" });
     }
@@ -730,9 +743,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== DISTRIBUTION CALCULATIONS ==========
   app.get("/api/distribution/calculation", async (req, res) => {
     try {
+      const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
       // Utiliser le nouveau système de calcul de distribution
       const { calculateDistribution } = await import('./new-distribution-calculator');
-      const distributionResult = await calculateDistribution();
+      const distributionResult = await calculateDistribution(year);
       res.json(distributionResult);
     } catch (error) {
       console.error('Erreur lors du calcul de distribution:', error);

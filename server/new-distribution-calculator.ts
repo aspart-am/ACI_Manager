@@ -32,8 +32,9 @@ interface AssociateShare {
 
 /**
  * Fonction principale pour calculer la distribution des revenus entre associés
+ * @param year L'année pour laquelle calculer la distribution (par défaut: année en cours)
  */
-export async function calculateDistribution(): Promise<DistributionResult> {
+export async function calculateDistribution(year: number = new Date().getFullYear()): Promise<DistributionResult> {
   try {
     console.log("======== Début du calcul de distribution ========");
     
@@ -75,9 +76,15 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     }
     
     // 3. Calculer les revenus et dépenses
-    const aciRevenues = allRevenues.filter(rev => rev.category === 'ACI');
+    // Filtrer les revenus ACI de l'année spécifiée
+    console.log(`Calcul de la distribution pour l'année: ${year}`);
+    const currentYearRevenues = allRevenues.filter(
+      rev => new Date(rev.date).getFullYear() === year
+    );
+    
+    const aciRevenues = currentYearRevenues.filter(rev => rev.category === 'ACI');
     const totalAciRevenue = aciRevenues.reduce((sum, rev) => sum + parseFloat(rev.amount), 0);
-    const totalRevenue = allRevenues.reduce((sum, rev) => sum + parseFloat(rev.amount), 0);
+    const totalRevenue = currentYearRevenues.reduce((sum, rev) => sum + parseFloat(rev.amount), 0);
     const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
     
     // 4. Calculer le montant net à distribuer (revenu ACI - dépenses)
