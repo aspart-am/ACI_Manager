@@ -60,6 +60,13 @@ export default function RcpMeetings() {
     queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
     enabled: !!selectedMeetingId,
   }) as { data: any[], refetch: () => void };
+  
+  // Log des présences pour débogage
+  React.useEffect(() => {
+    if (attendances.length > 0) {
+      console.log("Présences récupérées:", attendances);
+    }
+  }, [attendances]);
 
   // Récupération des données pour une réunion spécifique
   const { data: selectedMeeting } = useQuery({

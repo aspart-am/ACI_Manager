@@ -22,5 +22,35 @@
     "rcpId": 2,
     "associateId": 1,
     "attended": true
+  },
+  {
+    "id": 5,
+    "rcpId": 2,
+    "associateId": 4,
+    "attended": true
+  },
+  {
+    "id": 6,
+    "rcpId": 2,
+    "associateId": 17,
+    "attended": true
+  },
+  {
+    "id": 7,
+    "rcpId": 3,
+    "associateId": 13,
+    "attended": true
+  },
+  {
+    "id": 8,
+    "rcpId": 3,
+    "associateId": 14,
+    "attended": true
+  },
+  {
+    "id": 9,
+    "rcpId": 3,
+    "associateId": 11,
+    "attended": true
   }
 ]
