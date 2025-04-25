@@ -1,6 +1,12 @@
 import { query } from './db';
 
-interface Associate {
+// Interface pour tout objet dynamique permettant l'accès aux propriétés par string
+interface DynamicObject {
+  [key: string]: any;
+}
+
+// Étendre les interfaces de base pour permettre l'accès dynamique aux propriétés
+interface Associate extends DynamicObject {
   id: number;
   name: string;
   profession: string;
@@ -10,21 +16,27 @@ interface Associate {
   participationWeight: string;
 }
 
-interface RcpAttendance {
+interface RcpAttendance extends DynamicObject {
   id: number;
   rcpId: number;
   associateId: number;
   attended: boolean;
+  // Permettre des alternatives pour la compatibilité snake_case/camelCase
+  rcp_id?: number;
+  associate_id?: number;
 }
 
-interface ProjectAssignment {
+interface ProjectAssignment extends DynamicObject {
   id: number;
   projectId: number;
   associateId: number;
   contribution: string;
+  // Permettre des alternatives pour la compatibilité snake_case/camelCase
+  project_id?: number;
+  associate_id?: number;
 }
 
-interface Project {
+interface Project extends DynamicObject {
   id: number;
   title: string;
   description: string | null;
@@ -35,7 +47,7 @@ interface Project {
   assignmentCount?: number;
 }
 
-interface AccessoryMission {
+interface AccessoryMission extends DynamicObject {
   id: number;
   title: string;
   description: string | null;
@@ -47,14 +59,17 @@ interface AccessoryMission {
   year: number;
 }
 
-interface MissionAssignment {
+interface MissionAssignment extends DynamicObject {
   id: number;
   missionId: number;
   associateId: number;
   contributionPercentage: string;
+  // Permettre des alternatives pour la compatibilité snake_case/camelCase
+  mission_id?: number;
+  associate_id?: number;
 }
 
-interface RcpMeeting {
+interface RcpMeeting extends DynamicObject {
   id: number;
   title: string;
   description: string | null;
@@ -84,6 +99,51 @@ interface AssociateShare {
   projectShare: number;        // Part liée aux missions et projets (25% des revenus)
   totalShare: number;          // Somme des trois parts
   percentageShare: number;     // Pourcentage du total
+}
+
+/**
+ * Fonction utilitaire pour accéder à une propriété de manière flexible (camelCase ou snake_case)
+ * @param obj L'objet dans lequel chercher la propriété
+ * @param baseProperty Le nom de base de la propriété (sans préfixe)
+ * @param idSuffix Si true, ajoute "_id" ou "Id" comme suffixe
+ * @param prefix Un préfixe optionnel (comme "rcp" ou "project")
+ * @returns La valeur de la propriété ou undefined si non trouvée
+ */
+function getProperty(obj: DynamicObject, baseProperty: string, idSuffix: boolean = false, prefix?: string): any {
+  // Construire toutes les variantes possibles du nom de propriété
+  const variants: string[] = [];
+  
+  if (prefix) {
+    // Variantes avec préfixe
+    if (idSuffix) {
+      variants.push(`${prefix}_${baseProperty}_id`);  // snake_case (ex: project_associate_id)
+      variants.push(`${prefix}_${baseProperty}Id`);   // mixed (ex: project_associateId)
+      variants.push(`${prefix}${baseProperty.charAt(0).toUpperCase() + baseProperty.slice(1)}Id`); // camelCase (ex: projectAssociateId)
+      variants.push(`${prefix.toLowerCase()}Id`);     // simplified (ex: projectId)
+      variants.push(`${prefix.toLowerCase()}_id`);    // simplified snake (ex: project_id)
+    } else {
+      variants.push(`${prefix}_${baseProperty}`);     // snake_case (ex: project_contribution)
+      variants.push(`${prefix}${baseProperty.charAt(0).toUpperCase() + baseProperty.slice(1)}`); // camelCase (ex: projectContribution)
+    }
+  } else {
+    // Variantes sans préfixe
+    if (idSuffix) {
+      variants.push(`${baseProperty}_id`);            // snake_case (ex: associate_id)
+      variants.push(`${baseProperty}Id`);             // camelCase (ex: associateId)
+    } else {
+      variants.push(baseProperty);                    // as is (ex: contribution)
+    }
+  }
+  
+  // Chercher la première variante qui existe dans l'objet
+  for (const variant of variants) {
+    if (variant in obj) {
+      return obj[variant];
+    }
+  }
+  
+  // Si on arrive ici, aucune variante n'a été trouvée
+  return undefined;
 }
 
 export async function calculateDistribution(): Promise<DistributionResult> {
@@ -183,19 +243,21 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       });
       
       for (const attendance of rcpAttendances) {
-        // Utilisons les propriétés disponibles dans l'objet attendance
-        // Les propriétés peuvent être nommées différemment selon comment drizzle les récupère
-        // Nous devons nous adapter aux données telles qu'elles sont
-        const propNames = Object.keys(attendance);
+        // Utiliser notre fonction utilitaire pour accéder aux propriétés de manière flexible
+        const rcpIdNum = Number(getProperty(attendance, 'id', true, 'rcp')) || 
+                        Number(attendance.rcpId) || 
+                        Number(attendance.rcp_id);
         
-        // Trouver les propriétés qui contiennent "rcp" et "associate"
-        const rcpProp = propNames.find(p => p.toLowerCase().includes('rcp')) || 'rcpId';
-        const associateProp = propNames.find(p => p.toLowerCase().includes('associate')) || 'associateId';
+        const associateIdNum = Number(getProperty(attendance, 'id', true, 'associate')) || 
+                              Number(attendance.associateId) || 
+                              Number(attendance.associate_id);
         
-        const rcpIdNum = Number(attendance[rcpProp]);
-        const associateIdNum = Number(attendance[associateProp]);
+        if (!rcpIdNum || !associateIdNum) {
+          console.log("Présence ignorée: impossible de déterminer rcpId ou associateId", attendance);
+          continue;
+        }
         
-        console.log(`Traitement de la présence: ${rcpProp}=${rcpIdNum}, ${associateProp}=${associateIdNum}`);
+        console.log(`Traitement de la présence: rcpId=${rcpIdNum}, associateId=${associateIdNum}`);
         
         // Trouver la réunion correspondante pour obtenir la durée
         const meeting = rcpMeetings.find(m => Number(m.id) === rcpIdNum);
@@ -277,15 +339,24 @@ export async function calculateDistribution(): Promise<DistributionResult> {
         
         // Calculer la contribution des projets
         for (const assignment of projectAssignments) {
-          // Récupérer les noms de propriétés de manière dynamique
-          const props = Object.keys(assignment);
-          const projectIdProp = props.find(p => p.toLowerCase().includes('project_id')) || 'projectId';
-          const associateIdProp = props.find(p => p.toLowerCase().includes('associate_id')) || 'associateId';
-          const contributionProp = props.find(p => p.toLowerCase().includes('contribution')) || 'contribution';
+          // Utiliser notre fonction utilitaire pour accéder aux propriétés de manière flexible
+          const projectId = Number(getProperty(assignment, 'id', true, 'project')) ||
+                           Number(assignment.projectId) ||
+                           Number(assignment.project_id);
+                           
+          const associateId = Number(getProperty(assignment, 'id', true, 'associate')) ||
+                             Number(assignment.associateId) ||
+                             Number(assignment.associate_id);
           
-          const projectId = Number(assignment[projectIdProp]);
-          const associateId = Number(assignment[associateIdProp]);
-          const assignmentContribution = parseFloat(String(assignment[contributionProp]) || '1.0');
+          const contributionValue = getProperty(assignment, 'contribution') ||
+                                   assignment.contribution;
+          
+          const assignmentContribution = parseFloat(String(contributionValue) || '1.0');
+          
+          if (!projectId || !associateId) {
+            console.log("Affectation ignorée: impossible de déterminer projectId ou associateId", assignment);
+            continue;
+          }
           
           // Trouver le projet correspondant
           const project = projects.find(p => Number(p.id) === projectId);
@@ -328,36 +399,45 @@ export async function calculateDistribution(): Promise<DistributionResult> {
         
         // Calculer la contribution des missions accessoires
         for (const assignment of missionAssignments) {
-          // Récupérer les noms de propriétés de manière dynamique
-          const props = Object.keys(assignment);
-          const missionIdProp = props.find(p => p.toLowerCase().includes('mission_id')) || 'missionId';
-          const associateIdProp = props.find(p => p.toLowerCase().includes('associate_id')) || 'associateId';
-          const contributionProp = props.find(p => p.toLowerCase().includes('contribution')) || 'contributionPercentage';
+          // Utiliser notre fonction utilitaire pour accéder aux propriétés de manière flexible
+          const missionId = Number(getProperty(assignment, 'id', true, 'mission')) ||
+                           Number(assignment.missionId) ||
+                           Number(assignment.mission_id);
+                           
+          const associateId = Number(getProperty(assignment, 'id', true, 'associate')) ||
+                             Number(assignment.associateId) ||
+                             Number(assignment.associate_id);
           
-          // Convertir les IDs en nombres
-          const missionIdNum = Number(assignment[missionIdProp]);
-          const associateIdNum = Number(assignment[associateIdProp]);
+          const contributionValue = getProperty(assignment, 'contributionPercentage') ||
+                                   getProperty(assignment, 'contribution') ||
+                                   assignment.contributionPercentage || 
+                                   assignment.contribution;
+          
+          if (!missionId || !associateId) {
+            console.log("Assignation de mission ignorée: impossible de déterminer missionId ou associateId", assignment);
+            continue;
+          }
           
           // Trouver la mission correspondante
-          const mission = accessoryMissions.find(m => Number(m.id) === missionIdNum);
+          const mission = accessoryMissions.find(m => Number(m.id) === missionId);
           
           if (mission) {
             // Utiliser le budget comme poids supplémentaire pour les missions importantes
             const missionBudget = parseFloat(mission.budget || '0');
             // La contribution en pourcentage est déjà stockée (normalement entre 0 et 100)
-            const assignmentContribution = parseFloat(String(assignment[contributionProp]) || '100') / 100;
+            const assignmentContribution = parseFloat(String(contributionValue) || '100') / 100;
             
             // Pondérer la contribution par le budget pour donner plus de poids aux missions importantes
             // Pour éviter des divisions par zéro, utiliser au moins 1.0 comme budget minimum
             const effectiveBudget = Math.max(missionBudget, 1.0);
             const weightedContribution = effectiveBudget * assignmentContribution;
             
-            console.log(`Match trouvé! Mission: ${mission.title}, AssociateID: ${associateIdNum}, Contribution: ${assignmentContribution}, Budget: ${missionBudget}, Weighted: ${weightedContribution}`);
+            console.log(`Match trouvé! Mission: ${mission.title}, AssociateID: ${associateId}, Contribution: ${assignmentContribution}, Budget: ${missionBudget}, Weighted: ${weightedContribution}`);
             
-            contributionByAssociate[associateIdNum] = (contributionByAssociate[associateIdNum] || 0) + weightedContribution;
+            contributionByAssociate[associateId] = (contributionByAssociate[associateId] || 0) + weightedContribution;
             totalContribution += weightedContribution;
           } else {
-            console.log(`Warning: Mission not found for assignment: missionId=${missionIdNum}, looking in list of ids: [${accessoryMissions.map(m => `${m.id}`).join(', ')}]`);
+            console.log(`Warning: Mission not found for assignment: missionId=${missionId}, looking in list of ids: [${accessoryMissions.map(m => `${m.id}`).join(', ')}]`);
           }
         }
       }
@@ -431,11 +511,12 @@ export async function calculateDistribution(): Promise<DistributionResult> {
       // Conversion explicite de l'ID en nombre
       const meetingId = Number(meeting.id);
       
-      // Filtrer en utilisant une approche plus dynamique pour éviter les problèmes de noms de propriétés
+      // Utiliser notre fonction utilitaire pour filtrer
       const attendances = rcpAttendances.filter(a => {
-        const propNames = Object.keys(a);
-        const rcpProp = propNames.find(p => p.toLowerCase().includes('rcp')) || 'rcpId';
-        return Number(a[rcpProp]) === meetingId;
+        const rcpId = Number(getProperty(a, 'id', true, 'rcp')) || 
+                     Number(a.rcpId) || 
+                     Number(a.rcp_id);
+        return rcpId === meetingId;
       });
       
       meeting.attendanceCount = attendances.length;
@@ -444,13 +525,19 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     // Calculer les temps de présence par associé
     const attendanceByAssociate: Record<number, number> = {};
     for (const attendance of rcpAttendances) {
-      // Utiliser une approche dynamique pour trouver les propriétés
-      const propNames = Object.keys(attendance);
-      const rcpProp = propNames.find(p => p.toLowerCase().includes('rcp')) || 'rcpId';
-      const associateProp = propNames.find(p => p.toLowerCase().includes('associate')) || 'associateId';
+      // Utiliser notre fonction utilitaire pour accéder aux propriétés
+      const rcpIdNum = Number(getProperty(attendance, 'id', true, 'rcp')) || 
+                      Number(attendance.rcpId) || 
+                      Number(attendance.rcp_id);
       
-      const rcpIdNum = Number(attendance[rcpProp]);
-      const associateIdNum = Number(attendance[associateProp]);
+      const associateIdNum = Number(getProperty(attendance, 'id', true, 'associate')) || 
+                            Number(attendance.associateId) || 
+                            Number(attendance.associate_id);
+      
+      if (!rcpIdNum || !associateIdNum) {
+        console.log("Présence ignorée pour l'interface: impossible de déterminer rcpId ou associateId", attendance);
+        continue;
+      }
       
       // Trouver la réunion correspondante
       const meeting = rcpMeetings.find(m => Number(m.id) === rcpIdNum);
@@ -483,11 +570,12 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     
     // Mettre à jour les projets avec le nombre de contributeurs
     for (const project of projects) {
-      // Utiliser une approche dynamique pour détecter les noms de propriétés
+      // Utiliser notre fonction utilitaire pour filtrer les affectations
       const assignments = projectAssignments.filter(a => {
-        const props = Object.keys(a);
-        const projectIdProp = props.find(p => p.toLowerCase().includes('project_id')) || 'projectId';
-        return Number(a[projectIdProp]) === Number(project.id);
+        const projectId = Number(getProperty(a, 'id', true, 'project')) ||
+                         Number(a.projectId) ||
+                         Number(a.project_id);
+        return projectId === Number(project.id);
       });
       
       project.assignmentCount = assignments.length;
@@ -499,21 +587,29 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     let totalContrib = 0;
     
     for (const assignment of projectAssignments) {
-      // Récupérer les noms de propriétés de manière dynamique
-      const props = Object.keys(assignment);
-      const projectIdProp = props.find(p => p.toLowerCase().includes('project_id')) || 'projectId';
-      const associateIdProp = props.find(p => p.toLowerCase().includes('associate_id')) || 'associateId';
-      const contributionProp = props.find(p => p.toLowerCase().includes('contribution')) || 'contribution';
+      // Utiliser notre fonction utilitaire pour accéder aux propriétés
+      const projectId = Number(getProperty(assignment, 'id', true, 'project')) ||
+                       Number(assignment.projectId) ||
+                       Number(assignment.project_id);
+                       
+      const associateId = Number(getProperty(assignment, 'id', true, 'associate')) ||
+                         Number(assignment.associateId) ||
+                         Number(assignment.associate_id);
       
-      const projectId = Number(assignment[projectIdProp]);
-      const associateId = Number(assignment[associateIdProp]);
+      const contributionValue = getProperty(assignment, 'contribution') ||
+                               assignment.contribution;
       
-      console.log(`Affectation: projectId=${projectId}, associateId=${associateId}, contribution=${assignment[contributionProp]}`);
+      if (!projectId || !associateId) {
+        console.log("Affectation ignorée pour l'interface: impossible de déterminer projectId ou associateId", assignment);
+        continue;
+      }
+      
+      console.log(`Affectation: projectId=${projectId}, associateId=${associateId}, contribution=${contributionValue}`);
       
       const project = projects.find(p => Number(p.id) === projectId);
       if (project) {
         const projectWeight = parseFloat(project.weight || '1.0');
-        const assignmentContribution = parseFloat(String(assignment[contributionProp]) || '1.0');
+        const assignmentContribution = parseFloat(String(contributionValue) || '1.0');
         const weightedContrib = projectWeight * assignmentContribution;
         
         console.log(`  Contribution pondérée: ${weightedContrib} (poids projet: ${projectWeight}, contribution: ${assignmentContribution})`);
@@ -528,12 +624,14 @@ export async function calculateDistribution(): Promise<DistributionResult> {
     // Compter les projets par associé
     const projectsPerAssociate: Record<number, number> = {};
     for (const assignment of projectAssignments) {
-      // Récupérer les noms de propriétés de manière dynamique
-      const props = Object.keys(assignment);
-      const associateIdProp = props.find(p => p.toLowerCase().includes('associate_id')) || 'associateId';
-      const associateId = Number(assignment[associateIdProp]);
+      // Utiliser notre fonction utilitaire pour accéder aux propriétés
+      const associateId = Number(getProperty(assignment, 'id', true, 'associate')) ||
+                         Number(assignment.associateId) ||
+                         Number(assignment.associate_id);
       
-      projectsPerAssociate[associateId] = (projectsPerAssociate[associateId] || 0) + 1;
+      if (associateId) {
+        projectsPerAssociate[associateId] = (projectsPerAssociate[associateId] || 0) + 1;
+      }
     }
     
     // Calculer les pourcentages si on a des contributions
