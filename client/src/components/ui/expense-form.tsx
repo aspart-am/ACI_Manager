@@ -77,14 +77,14 @@ export default function ExpenseForm({
       
       if (isEdit && expenseId) {
         // Update existing expense
-        await apiRequest("PATCH", `/api/expenses/${expenseId}`, data);
+        await apiRequest(`/api/expenses/${expenseId}`, "PATCH", data);
         toast({
           title: "Charge mise à jour",
           description: "La charge a été modifiée avec succès.",
         });
       } else {
         // Create new expense
-        await apiRequest("POST", "/api/expenses", data);
+        await apiRequest("/api/expenses", "POST", data);
         toast({
           title: "Charge ajoutée",
           description: "La nouvelle charge a été ajoutée avec succès.",
