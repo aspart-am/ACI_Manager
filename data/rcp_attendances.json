@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": 1,
+    "rcpId": 2,
+    "associateId": 13,
+    "attended": true
+  },
+  {
+    "id": 2,
+    "rcpId": 2,
+    "associateId": 14,
+    "attended": true
+  },
+  {
+    "id": 3,
+    "rcpId": 2,
+    "associateId": 11,
+    "attended": true
+  },
+  {
+    "id": 4,
+    "rcpId": 2,
+    "associateId": 1,
+    "attended": true
+  }
+]
