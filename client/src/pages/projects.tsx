@@ -427,6 +427,9 @@ export default function Projects() {
                             <Badge variant="outline">
                               Poids: {project.weight}
                             </Badge>
+                            <Badge variant="secondary">
+                              {project.assignmentCount || 0} associés
+                            </Badge>
                           </div>
                         </div>
                       </Button>
