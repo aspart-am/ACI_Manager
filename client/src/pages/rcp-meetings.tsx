@@ -5,206 +5,98 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Calendar, Pencil, Trash2, Check, X, Clock, Users, Info, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { 
+  Calendar, 
+  Users, 
+  Check, 
+  CalendarDays, 
+  Clock, 
+  Edit, 
+  Trash2, 
+  Info,
+  RefreshCw,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  AlignJustify
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter 
+} from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { apiRequest } from '@/lib/queryClient';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
-// Schéma de validation du formulaire
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+
+// Schéma de validation pour le formulaire
 const formSchema = z.object({
   date: z.string().min(1, { message: 'La date est requise' }),
-  title: z.string().min(3, { message: 'Le titre doit comporter au moins 3 caractères' }),
+  title: z.string().min(1, { message: 'Le titre est requis' }),
   description: z.string().optional(),
-  duration: z.preprocess(
-    (val) => parseInt(val as string, 10),
-    z.number().min(15, { message: 'La durée minimale est de 15 minutes' })
-  ),
+  duration: z.number().min(15, { message: 'La durée minimale est de 15 minutes' })
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Composant principal
+// Type pour les associés avec leur état de présence
+type AssociateWithAttendance = {
+  id: number;
+  name: string;
+  profession: string;
+  isManager: boolean;
+  attendanceId: number | null;
+  isPresent: boolean;
+};
+
 export default function RcpMeetings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // État local pour les dialogues
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(null);
-
-  // Récupération des réunions RCP
-  const { data: meetings = [], isLoading } = useQuery({
-    queryKey: ['/api/rcp-meetings'],
-    staleTime: 60000,
-  }) as { data: any[], isLoading: boolean };
-
-  // Récupération des associés
-  const { data: associates = [] } = useQuery({
-    queryKey: ['/api/associates'],
-    staleTime: 60000,
-  }) as { data: any[] };
-
-  // Récupération des présences pour la réunion sélectionnée
-  const { 
-    data: attendances = [], 
-    refetch: refetchAttendances, 
-    isLoading: isLoadingAttendances,
-    error: attendancesError
-  } = useQuery({
-    queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
-    enabled: !!selectedMeetingId,
-    // Activer le refetch automatique et réduire le staleTime pour plus de synchronisation
-    staleTime: 0, // Réduire staleTime à 0 pour forcer la validation des données
-    refetchInterval: 5000, // Réduire l'intervalle de rafraichissement
-    refetchOnWindowFocus: true, // Rafraichir quand la fenêtre reprend le focus
-    retry: 3, // Réessayer 3 fois en cas d'échec
-  }) as { 
-    data: any[], 
-    refetch: () => void, 
-    isLoading: boolean,
-    error: any 
-  };
-  
-  // Log des présences et des erreurs pour débogage
-  React.useEffect(() => {
-    if (attendances && Array.isArray(attendances)) {
-      console.log("Présences récupérées:", meetings.filter(m => m.id === selectedMeetingId), attendances);
-    }
-    if (attendancesError) {
-      console.error("Erreur lors du chargement des présences:", attendancesError);
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Impossible de charger les données de présences. Veuillez réessayer.",
-        variant: "destructive",
-      });
-    }
-  }, [attendances, attendancesError, meetings, selectedMeetingId, toast]);
-  
-  // Effet pour refetch les présences quand on change de réunion sélectionnée
-  React.useEffect(() => {
-    if (selectedMeetingId) {
-      refetchAttendances();
-    }
-  }, [selectedMeetingId, refetchAttendances]);
-
-  // Récupération des données pour une réunion spécifique
-  const selectedMeeting = React.useMemo(() => {
-    if (!selectedMeetingId || !meetings || !Array.isArray(meetings)) return null;
-    return meetings.find((meeting: any) => meeting.id === selectedMeetingId);
-  }, [selectedMeetingId, meetings]);
-  
-  // État pour l'édition de réunion
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
-  // Formulaire d'édition
-  const editForm = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      date: '',
-      title: '',
-      description: '',
-      duration: 60,
-    },
-  });
+  // État local pour garder le suivi des présences
+  const [associateAttendance, setAssociateAttendance] = useState<AssociateWithAttendance[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Initialiser le formulaire d'édition quand une réunion est sélectionnée
-  React.useEffect(() => {
-    if (selectedMeeting) {
-      // Log pour débogage
-      console.log("Initialisation du formulaire d'édition avec:", selectedMeeting);
-      
-      editForm.reset({
-        date: selectedMeeting.date?.split('T')[0] || new Date().toISOString().split('T')[0],
-        title: selectedMeeting.title || '',
-        description: selectedMeeting.description || '',
-        duration: selectedMeeting.duration || 60,
-      });
-      
-      // Refetch explicite des présences quand une réunion est sélectionnée
-      refetchAttendances();
-    }
-  }, [selectedMeeting, editForm, refetchAttendances]);
-  
-  // Mutation pour modifier une réunion
-  const updateMutation = useMutation({
-    mutationFn: (values: FormValues) => {
-      const durationValue = typeof values.duration === 'string' 
-        ? parseInt(values.duration, 10) 
-        : values.duration;
-        
-      return apiRequest(`/api/rcp-meetings/${selectedMeetingId}`, 'PATCH', {
-        ...values,
-        duration: durationValue
-      });
-    },
-    onSuccess: () => {
-      // Invalider toutes les requêtes liées aux réunions
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId] });
-      
-      // Invalider également les présences pour mettre à jour le panneau des participants
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
-      
-      // Invalider le calcul de distribution qui dépend des réunions
-      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
-      
-      // Refetch explicite des données après mise à jour
-      setTimeout(() => {
-        refetchAttendances();
-      }, 300);
-      
-      toast({
-        title: 'Réunion mise à jour',
-        description: 'La réunion RCP a été modifiée avec succès.',
-      });
-      setIsEditDialogOpen(false);
-    },
-    onError: (error) => {
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de modifier la réunion RCP.',
-        variant: 'destructive',
-      });
-      console.error('Erreur lors de la modification de la réunion:', error);
-    },
-  });
-  
-  // Mutation pour supprimer une réunion
-  const deleteMutation = useMutation({
-    mutationFn: () => apiRequest(`/api/rcp-meetings/${selectedMeetingId}`, 'DELETE'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
-      toast({
-        title: 'Réunion supprimée',
-        description: 'La réunion RCP a été supprimée avec succès.',
-      });
-      setSelectedMeetingId(null);
-      setIsDeleteDialogOpen(false);
-    },
-    onError: (error) => {
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de supprimer la réunion RCP.',
-        variant: 'destructive',
-      });
-      console.error('Erreur lors de la suppression de la réunion:', error);
-    },
-  });
-
-  // Formulaire pour créer une réunion
+  // Gestion du formulaire avec react-hook-form et zod
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -215,164 +107,126 @@ export default function RcpMeetings() {
     },
   });
 
+  // Récupération des réunions RCP
+  const { 
+    data: meetings = [], 
+    isLoading: isLoadingMeetings,
+    error: meetingsError, 
+    refetch: refetchMeetings
+  } = useQuery({
+    queryKey: ['/api/rcp-meetings'],
+  }) as { data: any[], isLoading: boolean, error: any, refetch: () => void };
+
+  // Récupération des associés
+  const { 
+    data: associates = [],
+    isLoading: isLoadingAssociates
+  } = useQuery({
+    queryKey: ['/api/associates'],
+  }) as { data: any[], isLoading: boolean };
+
+  // Récupération des présences pour la réunion sélectionnée
+  const { 
+    data: attendances = [], 
+    isLoading: isLoadingAttendances,
+    error: attendancesError,
+    refetch: refetchAttendances
+  } = useQuery({
+    queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
+    enabled: !!selectedMeetingId,
+    staleTime: 0
+  }) as { 
+    data: any[], 
+    isLoading: boolean,
+    error: any,
+    refetch: () => Promise<any>
+  };
+
+  // Récupération des données pour une réunion spécifique
+  const selectedMeeting = React.useMemo(() => {
+    if (!selectedMeetingId || !meetings || !Array.isArray(meetings)) return null;
+    return meetings.find((meeting: any) => meeting.id === selectedMeetingId);
+  }, [selectedMeetingId, meetings]);
+  
+  // Effet pour mettre à jour associateAttendance quand les associés ou présences changent
+  React.useEffect(() => {
+    if (associates.length && selectedMeetingId) {
+      const newAttendanceState = associates.map((associate: any) => {
+        // Rechercher si l'associé a une présence
+        const attendance = Array.isArray(attendances) 
+          ? attendances.find((a: any) => a.associateId === associate.id) 
+          : null;
+        
+        return {
+          id: associate.id,
+          name: associate.name,
+          profession: associate.profession,
+          isManager: associate.isManager,
+          attendanceId: attendance ? attendance.id : null,
+          isPresent: attendance ? attendance.attended : false
+        };
+      });
+      
+      setAssociateAttendance(newAttendanceState);
+    }
+  }, [associates, attendances, selectedMeetingId]);
+  
+  // Initialiser le formulaire d'édition quand une réunion est sélectionnée
+  const editForm = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      date: '',
+      title: '',
+      description: '',
+      duration: 60,
+    },
+  });
+  
+  React.useEffect(() => {
+    if (selectedMeeting) {
+      editForm.reset({
+        date: selectedMeeting.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        title: selectedMeeting.title || '',
+        description: selectedMeeting.description || '',
+        duration: selectedMeeting.duration || 60,
+      });
+    }
+  }, [selectedMeeting, editForm]);
+
   // Mutation pour créer une nouvelle réunion
   const createMutation = useMutation({
     mutationFn: (values: FormValues) => {
-      // Vérification que la durée est bien un nombre
-      const durationValue = typeof values.duration === 'string' 
-        ? parseInt(values.duration, 10) 
-        : values.duration;
-        
-      return apiRequest('/api/rcp-meetings', 'POST', {
-        ...values,
-        duration: durationValue
-      });
+      return apiRequest('/api/rcp-meetings', 'POST', values);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setIsDialogOpen(false);
+      
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      
       toast({
         title: 'Réunion créée',
-        description: 'La réunion RCP a été ajoutée avec succès.',
+        description: 'La réunion a été créée avec succès.',
       });
-      form.reset();
-      setIsDialogOpen(false);
-    },
-    onError: (error) => {
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de créer la réunion RCP.',
-        variant: 'destructive',
-      });
-      console.error('Erreur lors de la création de la réunion:', error);
-    },
-  });
-
-  // Mutation pour mettre à jour les présences
-  const updateAttendanceMutation = useMutation({
-    mutationFn: ({ id, attended }: { id: number; attended: boolean }) => {
-      console.log(`Mise à jour de la présence ${id} -> ${attended}`);
-      return apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended });
-    },
-    onSuccess: (data) => {
-      console.log("Présence mise à jour avec succès:", data);
-
-      // Mettre à jour le cache avec les nouvelles données de présence
-      queryClient.setQueryData(
-        ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
-        (oldData: any) => {
-          if (!oldData || !Array.isArray(oldData)) return oldData;
-          
-          // Rechercher l'index de l'élément mis à jour
-          const index = oldData.findIndex((a: any) => a.id === data.id);
-          
-          // Si l'élément existe, le mettre à jour
-          if (index >= 0) {
-            const newData = [...oldData];
-            newData[index] = data;
-            return newData;
-          }
-          
-          // Sinon, ajouter le nouveau
-          return [...oldData, data];
-        }
-      );
       
-      // Invalider explicitement toutes les requêtes pour forcer un rafraîchissement complet
-      queryClient.invalidateQueries(); 
-      
-      // Refetch explicite des présences pour s'assurer que les changements sont pris en compte
-      refetchAttendances();
-      
-      // Forcer un recalcul de la distribution après un délai
+      // Sélectionner automatiquement la nouvelle réunion créée
       setTimeout(() => {
-        queryClient.fetchQuery({ queryKey: ['/api/distribution/calculation'] });
+        setSelectedMeetingId(data.id);
       }, 300);
+      
+      // Réinitialiser le formulaire
+      form.reset({
+        date: new Date().toISOString().split('T')[0],
+        title: '',
+        description: '',
+        duration: 60,
+      });
     },
     onError: (error: any) => {
-      console.error('Erreur détaillée lors de la mise à jour de la présence:', error);
       toast({
         title: 'Erreur',
-        description: error?.message || 'Impossible de mettre à jour la présence.',
+        description: error?.message || 'Une erreur est survenue lors de la création de la réunion.',
         variant: 'destructive',
       });
-      
-      // En cas d'erreur, recharger les données pour annuler les changements optimistes
-      refetchAttendances();
-    },
-  });
-
-  // Mutation pour créer une présence
-  const createAttendanceMutation = useMutation({
-    mutationFn: ({ rcpId, associateId, attended }: { rcpId: number; associateId: number; attended: boolean }) => {
-      console.log(`Création d'une présence pour la réunion ${rcpId}, associé ${associateId}, présent: ${attended}`);
-      return apiRequest('/api/rcp-attendances', 'POST', { 
-        rcpId, 
-        associateId, 
-        attended 
-      });
-    },
-    onSuccess: (data) => {
-      console.log("Nouvelle présence créée avec succès:", data);
-      
-      // Mettre à jour le cache avec les nouvelles données de présence
-      queryClient.setQueryData(
-        ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
-        (oldData: any) => {
-          if (!oldData || !Array.isArray(oldData)) return [data];
-          
-          // Rechercher si l'élément temporaire existe (remplacer notre ID temporaire)
-          const tempIndex = oldData.findIndex((a: any) => 
-            typeof a.id === 'string' && a.id.startsWith('temp-') && a.associateId === data.associateId
-          );
-          
-          if (tempIndex >= 0) {
-            // Remplacer l'élément temporaire par l'élément réel du serveur
-            const newData = [...oldData];
-            newData[tempIndex] = data;
-            return newData;
-          }
-          
-          // Vérifier si l'associé a déjà une entrée
-          const existingIndex = oldData.findIndex((a: any) => a.associateId === data.associateId);
-          if (existingIndex >= 0) {
-            // Mettre à jour l'entrée existante
-            const newData = [...oldData];
-            newData[existingIndex] = data;
-            return newData;
-          }
-          
-          // Sinon, ajouter la nouvelle entrée
-          return [...oldData, data];
-        }
-      );
-      
-      // Invalider explicitement toutes les requêtes pour forcer un rafraîchissement complet
-      queryClient.invalidateQueries();
-      
-      // Refetch explicite des présences pour s'assurer que les changements sont pris en compte
-      refetchAttendances();
-      
-      // Mettre à jour la réunion sélectionnée aussi
-      if (selectedMeetingId) {
-        // Force refresh of meeting data
-        queryClient.fetchQuery({ queryKey: ['/api/rcp-meetings'] });
-      }
-      
-      // Forcer un recalcul de la distribution après un délai
-      setTimeout(() => {
-        queryClient.fetchQuery({ queryKey: ['/api/distribution/calculation'] });
-      }, 300);
-    },
-    onError: (error: any) => {
-      console.error('Erreur détaillée lors de l\'ajout de la présence:', error);
-      toast({
-        title: 'Erreur',
-        description: error?.message || 'Impossible d\'ajouter la présence.',
-        variant: 'destructive',
-      });
-      
-      // En cas d'erreur, recharger les données pour annuler les changements optimistes
-      refetchAttendances();
     },
   });
 
@@ -380,107 +234,168 @@ export default function RcpMeetings() {
   function onSubmit(values: FormValues) {
     createMutation.mutate(values);
   }
-
-  // Gestion des présences/absences
-  const handleAttendanceChange = (attendanceId: number | null, associateId: number, isPresent: boolean) => {
-    // Vérification de sécurité: s'assurer que selectedMeetingId existe et est présent dans meetings
-    if (!selectedMeetingId) {
-      toast({
-        title: 'Erreur',
-        description: 'Veuillez sélectionner une réunion valide',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    // Vérifier que la réunion existe encore
-    const meetingExists = meetings && Array.isArray(meetings) && meetings.some((m: any) => m && m.id === selectedMeetingId);
-    if (!meetingExists) {
-      toast({
-        title: 'Erreur',
-        description: 'Cette réunion n\'existe plus. Veuillez sélectionner une autre réunion.',
-        variant: 'destructive',
-      });
-      setSelectedMeetingId(null);
-      return;
-    }
-    
-    // Optimistic update - mettre à jour l'interface immédiatement pour une meilleure réactivité
-    // Cette technique simule la mise à jour locale avant confirmation par le serveur
-    const optimisticUpdate = (isAttending: boolean) => {
-      // Mise à jour optimiste pour les composants d'interface qui utilisent isAssociatePresent
-      queryClient.setQueryData(
-        ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
-        (oldData: any) => {
-          if (!oldData || !Array.isArray(oldData)) return oldData;
-          
-          // Rechercher si l'associé est déjà dans la liste
-          const index = oldData.findIndex((a: any) => a.associateId === associateId);
-          
-          if (index >= 0) {
-            // Mise à jour d'une présence existante
-            const newData = [...oldData];
-            newData[index] = {
-              ...newData[index],
-              attended: isAttending
-            };
-            return newData;
-          } else if (isAttending) {
-            // Ajout d'une nouvelle présence optimiste
-            return [
-              ...oldData,
-              {
-                id: `temp-${Date.now()}`, // ID temporaire qui sera remplacé par l'ID réel
-                rcpId: selectedMeetingId,
-                associateId,
-                attended: isAttending
-              }
-            ];
-          }
-          
-          return oldData;
-        }
+  
+  // Mutation pour mettre à jour une présence
+  const updateAttendanceMutation = useMutation({
+    mutationFn: ({ id, attended }: { id: number; attended: boolean }) => {
+      return apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended });
+    },
+    onSuccess: (data) => {
+      // Mettre à jour l'état local
+      setAssociateAttendance(prev => 
+        prev.map(a => 
+          a.id === data.associateId 
+            ? { ...a, attendanceId: data.id, isPresent: data.attended }
+            : a
+        )
       );
-    };
-    
-    try {
-      // Appliquer la mise à jour optimiste immédiatement
-      optimisticUpdate(isPresent);
       
-      if (attendanceId) {
-        // Mise à jour d'une présence existante
-        console.log(`Mise à jour d'une présence existante: ID ${attendanceId}, présent: ${isPresent}`);
-        updateAttendanceMutation.mutate({ id: attendanceId, attended: isPresent });
-      } else if (selectedMeetingId) {
-        // Vérifier si l'associé est déjà assigné à cette réunion
-        const existingAttendance = attendances && Array.isArray(attendances) 
-          ? attendances.find((a: any) => a && a.associateId === associateId)
-          : null;
-        
-        if (existingAttendance) {
-          // Si l'associé est déjà assigné, mettre à jour sa présence au lieu d'en créer une nouvelle
-          console.log(`Mise à jour d'une présence trouvée: ID ${existingAttendance.id}, présent: ${isPresent}`);
-          updateAttendanceMutation.mutate({ id: existingAttendance.id, attended: isPresent });
-        } else {
-          // Création d'une nouvelle présence
-          console.log(`Création d'une nouvelle présence: réunion ${selectedMeetingId}, associé ${associateId}, présent: ${isPresent}`);
-          createAttendanceMutation.mutate({ 
-            rcpId: selectedMeetingId, 
-            associateId, 
-            attended: isPresent 
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Erreur lors de la gestion des présences:", error);
+      // Invalider les requêtes de distribution
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
+      // Mettre à jour le décompte de présence dans la liste des réunions
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+    },
+    onError: () => {
+      // En cas d'erreur, recharger les présences pour retrouver l'état correct
+      refreshAttendances();
+      
       toast({
         title: 'Erreur',
-        description: 'Une erreur est survenue lors de la gestion des présences.',
+        description: 'Impossible de mettre à jour la présence.',
         variant: 'destructive',
       });
+    },
+  });
+
+  // Mutation pour créer une présence
+  const createAttendanceMutation = useMutation({
+    mutationFn: ({ rcpId, associateId, attended }: { rcpId: number; associateId: number; attended: boolean }) => {
+      return apiRequest('/api/rcp-attendances', 'POST', { rcpId, associateId, attended });
+    },
+    onSuccess: (data) => {
+      // Mettre à jour l'état local
+      setAssociateAttendance(prev => 
+        prev.map(a => 
+          a.id === data.associateId 
+            ? { ...a, attendanceId: data.id, isPresent: data.attended }
+            : a
+        )
+      );
       
-      // Annuler la mise à jour optimiste en cas d'erreur
-      refetchAttendances();
+      // Invalider les requêtes de distribution
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
+      // Mettre à jour le décompte de présence dans la liste des réunions
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+    },
+    onError: () => {
+      // En cas d'erreur, recharger les présences pour retrouver l'état correct
+      refreshAttendances();
+      
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'ajouter la présence.',
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  // Mutation pour mettre à jour une réunion
+  const updateMutation = useMutation({
+    mutationFn: (values: FormValues) => {
+      return apiRequest(`/api/rcp-meetings/${selectedMeetingId}`, 'PATCH', values);
+    },
+    onSuccess: () => {
+      setIsEditDialogOpen(false);
+      
+      // Invalider les requêtes pour mettre à jour l'interface
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      
+      toast({
+        title: 'Réunion mise à jour',
+        description: 'La réunion a été mise à jour avec succès.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erreur',
+        description: error?.message || 'Une erreur est survenue lors de la mise à jour de la réunion.',
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  // Mutation pour supprimer une réunion
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => {
+      return apiRequest(`/api/rcp-meetings/${id}`, 'DELETE');
+    },
+    onSuccess: () => {
+      setIsDeleteDialogOpen(false);
+      
+      // Invalider les requêtes pour mettre à jour l'interface
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
+      toast({
+        title: 'Réunion supprimée',
+        description: 'La réunion a été supprimée avec succès.',
+      });
+      
+      setSelectedMeetingId(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erreur',
+        description: error?.message || 'Une erreur est survenue lors de la suppression de la réunion.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Gestion des présences/absences avec un état local
+  const handleAttendanceChange = (associateId: number, isPresent: boolean) => {
+    if (!selectedMeetingId) return;
+    
+    // Trouver l'associé dans l'état local
+    const associate = associateAttendance.find(a => a.id === associateId);
+    if (!associate) return;
+    
+    // Mise à jour optimiste de l'état
+    setAssociateAttendance(prev => 
+      prev.map(a => 
+        a.id === associateId 
+          ? { ...a, isPresent }
+          : a
+      )
+    );
+    
+    if (associate.attendanceId) {
+      // Mise à jour d'une présence existante
+      updateAttendanceMutation.mutate({ 
+        id: associate.attendanceId, 
+        attended: isPresent 
+      });
+    } else {
+      // Création d'une nouvelle présence
+      createAttendanceMutation.mutate({ 
+        rcpId: selectedMeetingId, 
+        associateId, 
+        attended: isPresent 
+      });
+    }
+  };
+  
+  // Fonction pour rafraîchir les présences
+  const refreshAttendances = async () => {
+    if (!selectedMeetingId) return;
+    
+    setIsRefreshing(true);
+    try {
+      await refetchAttendances();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -496,37 +411,13 @@ export default function RcpMeetings() {
         
       return format(date, 'dd MMMM yyyy', { locale: fr });
     } catch (e) {
-      console.error('Erreur lors du formatage de la date:', e);
       return 'Date invalide';
     }
   };
-
-  // Vérifier si un associé est présent à la réunion sélectionnée
-  const isAssociatePresent = (associateId: number) => {
-    if (!attendances || !Array.isArray(attendances)) return false;
-    
-    const attendance = attendances.find((a: any) => 
-      a && typeof a === 'object' && a.associateId === associateId
-    );
-    
-    return attendance && attendance.attended === true;
-  };
-
-  // Obtenir l'ID de présence pour un associé
-  const getAttendanceId = (associateId: number) => {
-    if (!attendances || !Array.isArray(attendances)) return null;
-    
-    const attendance = attendances.find((a: any) => 
-      a && typeof a === 'object' && a.associateId === associateId
-    );
-    
-    return attendance ? attendance.id : null;
-  };
   
-  // Compte le nombre d'associés présents
+  // Compter le nombre d'associés présents
   const getPresentCount = () => {
-    if (!attendances || !Array.isArray(attendances)) return 0;
-    return attendances.filter((a: any) => a && a.attended === true).length;
+    return associateAttendance.filter(a => a.isPresent).length;
   };
 
   return (
@@ -622,86 +513,109 @@ export default function RcpMeetings() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="md:col-span-4 space-y-4">
-          <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Liste des réunions RCP (sidebar) */}
+        <div className="lg:col-span-4">
+          <Card className="h-full">
             <CardHeader>
               <CardTitle>Liste des réunions</CardTitle>
               <CardDescription>
-                Sélectionnez une réunion pour gérer les présences
+                Sélectionnez une réunion pour voir et gérer les présences
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <p>Chargement des réunions...</p>
+              {isLoadingMeetings ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                </div>
+              ) : meetingsError ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-8 h-8 mx-auto text-red-500 mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Erreur lors du chargement des réunions
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => refetchMeetings()}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Réessayer
+                  </Button>
+                </div>
               ) : meetings.length === 0 ? (
-                <p>Aucune réunion RCP n'a été créée.</p>
+                <div className="text-center py-8 space-y-3">
+                  <Calendar className="w-12 h-12 mx-auto text-gray-300" />
+                  <p>Aucune réunion RCP trouvée</p>
+                  <p className="text-sm text-muted-foreground">
+                    Cliquez sur "Nouvelle réunion" pour commencer
+                  </p>
+                </div>
               ) : (
-                <ul className="space-y-2">
+                <div className="space-y-2">
                   {meetings.map((meeting: any) => (
-                    <li key={meeting.id}>
-                      <Button
-                        variant={selectedMeetingId === meeting.id ? "default" : "outline"}
-                        className="w-full justify-start"
-                        onClick={() => setSelectedMeetingId(meeting.id)}
-                      >
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">{meeting.title}</span>
-                          <span className="text-sm text-muted-foreground">{formatDate(meeting.date)}</span>
-                          <Badge variant="outline" className="mt-1">
-                            {meeting.duration || 240} min
+                    <div 
+                      key={meeting.id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedMeetingId === meeting.id 
+                          ? 'bg-blue-50 border-blue-200'
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => setSelectedMeetingId(meeting.id)}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-medium">{meeting.title}</h3>
+                        {meeting.attendanceCount > 0 && (
+                          <Badge variant="outline" className="ml-2">
+                            <Users className="h-3 w-3 mr-1" />
+                            {meeting.attendanceCount}
                           </Badge>
-                        </div>
-                      </Button>
-                    </li>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+                        <span className="flex items-center">
+                          <CalendarDays className="h-3 w-3 mr-1" />
+                          {formatDate(meeting.date)}
+                        </span>
+                        <span className="flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {meeting.duration} min
+                        </span>
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        <div className="md:col-span-8">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>
-                    {selectedMeeting ? (
-                      <>
-                        {selectedMeeting.title} - {formatDate(selectedMeeting.date)}
-                      </>
-                    ) : (
-                      'Gestion des présences'
-                    )}
-                  </CardTitle>
-                  <CardDescription>
-                    {selectedMeeting ? (
-                      <>
-                        Durée: {selectedMeeting.duration || 240} minutes
-                        {selectedMeeting.description && (
-                          <p className="mt-2">{selectedMeeting.description}</p>
-                        )}
-                      </>
-                    ) : (
-                      'Sélectionnez une réunion pour gérer les présences'
-                    )}
-                  </CardDescription>
-                </div>
-                
-                {selectedMeeting && (
-                  <div className="flex gap-2">
+        {/* Détails de la réunion sélectionnée */}
+        <div className="lg:col-span-8">
+          {selectedMeetingId && selectedMeeting ? (
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle>{selectedMeeting.title}</CardTitle>
+                    <CardDescription>
+                      {formatDate(selectedMeeting.date)}
+                    </CardDescription>
+                  </div>
+                  <div className="flex space-x-2">
                     <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button variant="outline" size="icon">
-                          <Pencil className="h-4 w-4" />
+                        <Button variant="outline" size="sm">
+                          <Edit className="h-4 w-4 mr-1" />
+                          Modifier
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Modifier la réunion RCP</DialogTitle>
+                          <DialogTitle>Modifier la réunion</DialogTitle>
                           <DialogDescription>
-                            Modifiez les détails de la réunion de concertation pluriprofessionnelle.
+                            Modifiez les informations de cette réunion RCP.
                           </DialogDescription>
                         </DialogHeader>
                         <Form {...editForm}>
@@ -777,84 +691,62 @@ export default function RcpMeetings() {
                         </Form>
                       </DialogContent>
                     </Dialog>
-
+                    
                     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="icon">
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button variant="outline" size="sm" className="text-red-500 border-red-200 hover:bg-red-50">
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Supprimer
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+                          <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Cette action ne peut pas être annulée. Cela supprimera définitivement cette réunion RCP
-                            et toutes les données de présence associées.
+                            Êtes-vous sûr de vouloir supprimer cette réunion ? Cette action est irréversible
+                            et supprimera également toutes les présences associées.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Annuler</AlertDialogCancel>
                           <AlertDialogAction 
-                            onClick={(e) => {
-                              e.preventDefault(); // Empêcher l'action par défaut
-                              deleteMutation.mutate();
-                            }}
-                            disabled={deleteMutation.isPending}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="bg-red-500 hover:bg-red-600"
+                            onClick={() => deleteMutation.mutate(selectedMeetingId)}
                           >
-                            {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+                            Supprimer
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
                   </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {!selectedMeetingId ? (
-                <div className="flex items-center justify-center h-40">
-                  <div className="text-center">
-                    <Info className="h-8 w-8 mx-auto text-blue-500 mb-2" />
-                    <p>Veuillez sélectionner une réunion dans la liste à gauche pour gérer les présences.</p>
-                  </div>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Section d'informations sur la réunion */}
-                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <div className="flex flex-col md:flex-row md:justify-between gap-4">
-                      <div>
-                        <div className="flex items-center mb-2">
-                          <Calendar className="h-5 w-5 text-blue-600 mr-2" />
-                          <span className="font-medium">Date:</span> 
-                          <span className="ml-2">{formatDate(selectedMeeting?.date || '')}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-5 w-5 text-blue-600 mr-2" />
-                          <span className="font-medium">Durée:</span>
-                          <span className="ml-2">{selectedMeeting?.duration || 0} minutes</span>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex items-center mb-2">
-                          <Users className="h-5 w-5 text-blue-600 mr-2" />
-                          <span className="font-medium">Présences:</span>
-                          <Badge className="ml-2" variant="outline">
-                            {getPresentCount()} / {associates.length}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center">
-                          <AlertCircle className="h-5 w-5 text-blue-600 mr-2" />
-                          <span className="font-medium">Statut:</span>
-                          {isLoadingAttendances ? (
-                            <Badge className="ml-2" variant="outline">
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                              Chargement...
-                            </Badge>
-                          ) : (
-                            <Badge className="ml-2" variant={getPresentCount() > 0 ? "default" : "destructive"}>
-                              {getPresentCount() > 0 ? "Réunion validée" : "Aucun participant"}
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Informations détaillées de la réunion */}
+                <div>
+                  <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex-1">
+                      <h3 className="font-medium">Détails de la réunion</h3>
+                      <div className="mt-2 space-y-1 text-sm">
+                        {selectedMeeting.description && (
+                          <p className="text-muted-foreground">{selectedMeeting.description}</p>
+                        )}
+                        <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
+                          <span className="flex items-center text-muted-foreground">
+                            <CalendarDays className="h-4 w-4 mr-1" />
+                            {formatDate(selectedMeeting.date)}
+                          </span>
+                          <span className="flex items-center text-muted-foreground">
+                            <Clock className="h-4 w-4 mr-1" />
+                            {selectedMeeting.duration} minutes
+                          </span>
+                          <span className="flex items-center">
+                            <Users className="h-4 w-4 mr-1" />
+                            {getPresentCount()} présent(s)
+                          </span>
+                          {associates.length > 0 && (
+                            <Badge variant="outline" className="ml-auto">
+                              {Math.round((getPresentCount() / associates.length) * 100)}% de participation
                             </Badge>
                           )}
                         </div>
@@ -872,23 +764,32 @@ export default function RcpMeetings() {
                     </AlertDescription>
                   </Alert>
                   
-                  <div className="flex justify-between items-center mb-3">
+                  <div className="flex justify-between items-center mt-6 mb-3">
                     <h3 className="text-lg font-medium flex items-center">
                       <Users className="h-5 w-5 mr-2" />
                       Liste des participants
                     </h3>
-                    <div className="text-sm text-blue-600 font-medium">
-                      {!isLoadingAttendances && selectedMeeting && (
+                    <div className="flex items-center space-x-2">
+                      <div className="text-sm text-blue-600 font-medium">
                         <span className="flex items-center">
                           <Check className="h-4 w-4 mr-1" />
                           {getPresentCount()} présent(s) / {associates.length} associés
                         </span>
-                      )}
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={refreshAttendances}
+                        disabled={isRefreshing}
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        Rafraîchir
+                      </Button>
                     </div>
                   </div>
                   <Separator className="mb-4" />
                   
-                  {isLoadingAttendances ? (
+                  {isLoadingAssociates || isLoadingAttendances ? (
                     // Affichage pendant le chargement
                     <div className="py-8 space-y-4">
                       <div className="animate-pulse flex justify-center">
@@ -910,75 +811,68 @@ export default function RcpMeetings() {
                         <Button 
                           variant="outline" 
                           className="mt-4"
-                          onClick={() => refetchAttendances()}
+                          onClick={refreshAttendances}
                         >
                           <RefreshCw className="h-4 w-4 mr-2" />
                           Réessayer
                         </Button>
                       </div>
                     </div>
-                  ) : associates.length === 0 ? (
+                  ) : associateAttendance.length === 0 ? (
                     <div className="text-center p-8 bg-gray-50 rounded border">
                       <p>Aucun associé trouvé. Veuillez ajouter des associés dans la section "Associés".</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {associates.map((associate: any) => {
-                        if (!associate || !associate.id) return null;
-                        
-                        const isPresent = isAssociatePresent(associate.id);
-                        const attendanceId = getAttendanceId(associate.id);
-                        
-                        return (
-                          <div 
-                            key={associate.id} 
-                            className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
-                              isPresent 
-                                ? 'bg-green-50 border-green-200' 
-                                : 'bg-white hover:bg-gray-50'
-                            }`}
-                          >
-                            <div>
-                              <p className="font-medium">{associate.name}</p>
-                              <p className="text-sm text-muted-foreground">{associate.profession}</p>
-                              {associate.isManager && (
-                                <Badge className="mt-1" variant="outline">Co-gérant</Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-3">
-                              <div className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`attendance-${associate.id}`}
-                                  checked={isPresent}
-                                  onCheckedChange={(checked) => {
-                                    handleAttendanceChange(attendanceId, associate.id, checked === true);
-                                  }}
-                                />
-                                <Label htmlFor={`attendance-${associate.id}`} className="cursor-pointer">
-                                  {isPresent ? 'Présent' : 'Absent'}
-                                </Label>
-                              </div>
-                              
-                              {/* Indicateur visuel de présence */}
-                              {isPresent ? (
-                                <Badge className="bg-green-500 text-white">
-                                  <Check className="h-4 w-4 mr-1" />
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-gray-100 text-gray-700">
-                                  <X className="h-4 w-4" />
-                                </Badge>
-                              )}
+                      {associateAttendance.map((associate) => (
+                        <div 
+                          key={associate.id} 
+                          className={`flex p-4 rounded-lg border transition-colors ${
+                            associate.isPresent 
+                              ? 'bg-green-50 border-green-200' 
+                              : 'bg-white hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="w-3/5 pr-2">
+                            <p className="font-medium">{associate.name}</p>
+                            <p className="text-sm text-muted-foreground">{associate.profession}</p>
+                            {associate.isManager && (
+                              <Badge className="mt-1" variant="outline">Co-gérant</Badge>
+                            )}
+                          </div>
+                          <div className="w-2/5 flex items-center justify-end">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`attendance-${associate.id}`}
+                                checked={associate.isPresent}
+                                onCheckedChange={(checked) => {
+                                  handleAttendanceChange(associate.id, checked === true);
+                                }}
+                              />
+                              <Label htmlFor={`attendance-${associate.id}`} className="cursor-pointer whitespace-nowrap">
+                                {associate.isPresent ? 'Présent' : 'Absent'}
+                              </Label>
                             </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="h-full flex items-center justify-center">
+              <CardContent className="text-center py-12">
+                <Calendar className="h-16 w-16 mx-auto text-gray-200 mb-4" />
+                <h3 className="text-xl font-medium mb-2">Aucune réunion sélectionnée</h3>
+                <p className="text-muted-foreground max-w-md">
+                  Veuillez sélectionner une réunion dans la liste ou créer une nouvelle réunion
+                  pour gérer les présences.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

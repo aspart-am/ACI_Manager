@@ -1,11 +1,6 @@
 [
   {
-    "id": 4,
-    "title": "DTII",
-    "description": null,
-    "startDate": "2025-04-26",
-    "endDate": null,
-    "status": "active",
-    "weight": 1.5
+    "id": 5,
+    "weight": "2"
   }
 ]
