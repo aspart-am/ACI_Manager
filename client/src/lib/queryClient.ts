@@ -23,6 +23,13 @@ export async function apiRequest(
   });
 
   await throwIfResNotOk(res);
+  
+  // Pour les réponses 204 No Content, ne pas essayer de parser du JSON
+  if (res.status === 204) {
+    return null;
+  }
+  
+  // Pour toutes les autres réponses, parser le JSON
   return res.json();
 }
 

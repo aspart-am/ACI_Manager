@@ -25,5 +25,14 @@
     "date": "2025-04-25T13:44:53.882Z",
     "isRecurring": false,
     "frequency": "monthly"
+  },
+  {
+    "id": 4,
+    "category": "Loyer",
+    "description": "SISA",
+    "amount": 2400,
+    "date": "2025-04-26T07:24:38.991Z",
+    "isRecurring": false,
+    "frequency": "monthly"
   }
 ]
