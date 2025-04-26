@@ -99,9 +99,9 @@ export default function RcpMeetings() {
 
   // Récupération des données pour une réunion spécifique
   const selectedMeeting = React.useMemo(() => {
-    if (!selectedMeetingId || !meetings.data) return null;
-    return meetings.data.find((meeting: any) => meeting.id === selectedMeetingId);
-  }, [selectedMeetingId, meetings.data]);
+    if (!selectedMeetingId || !meetings || !Array.isArray(meetings)) return null;
+    return meetings.find((meeting: any) => meeting.id === selectedMeetingId);
+  }, [selectedMeetingId, meetings]);
   
   // État pour l'édition de réunion
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);

@@ -232,17 +232,13 @@ export default function Projects() {
       // Attendre que toutes les mises à jour soient terminées
       await Promise.all(updatePromises);
       
-      // Rafraîchir les données
+      // Rafraîchir les données et le calcul de distribution
       queryClient.invalidateQueries({ queryKey: ['/api/projects', selectedProjectId, 'assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
       
       // Ajouter un délai avant de rafraîchir pour s'assurer que le cache est invalidé
       setTimeout(() => {
         refetchProjectAssignments();
-        
-        toast({
-          title: 'Contributions redistribuées',
-          description: `Chaque associé a maintenant une contribution de ${equalShare}%.`,
-        });
       }, 300);
     } catch (error) {
       toast({
@@ -594,12 +590,10 @@ export default function Projects() {
                                       await apiRequest(`/api/project-assignments/${assignment.id}`, 'PATCH', {
                                         contribution: newValue
                                       });
+                                      // Invalider les caches pour les projets et les calculs de distribution
                                       queryClient.invalidateQueries({ queryKey: ['/api/projects', selectedProjectId, 'assignments'] });
+                                      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
                                       refetchProjectAssignments();
-                                      toast({
-                                        title: 'Contribution mise à jour',
-                                        description: `La contribution a été modifiée avec succès.`,
-                                      });
                                     } catch (error) {
                                       toast({
                                         title: 'Erreur',
