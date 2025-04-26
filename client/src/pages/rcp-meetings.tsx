@@ -98,10 +98,10 @@ export default function RcpMeetings() {
   }, [selectedMeetingId, refetchAttendances]);
 
   // Récupération des données pour une réunion spécifique
-  const { data: selectedMeeting } = useQuery({
-    queryKey: ['/api/rcp-meetings', selectedMeetingId],
-    enabled: !!selectedMeetingId,
-  }) as { data: any };
+  const selectedMeeting = React.useMemo(() => {
+    if (!selectedMeetingId || !meetings.data) return null;
+    return meetings.data.find((meeting: any) => meeting.id === selectedMeetingId);
+  }, [selectedMeetingId, meetings.data]);
   
   // État pour l'édition de réunion
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);

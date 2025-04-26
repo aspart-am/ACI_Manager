@@ -186,7 +186,7 @@ export default function Projects() {
 
   // Fonction pour vérifier si un associé est déjà assigné au projet
   const isAssociateAssignedToProject = (associateId: number) => {
-    return projectAssignments.some((a: any) => a.associate_id === associateId);
+    return projectAssignments.some((a: any) => a.associateId === associateId);
   };
 
   // Fonction pour arrondir à 2 décimales
@@ -573,7 +573,7 @@ export default function Projects() {
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {projectAssignments.map((assignment: any) => {
-                          const associate = associates.find((a: any) => a.id === assignment.associate_id);
+                          const associate = associates.find((a: any) => a.id === assignment.associateId);
                           return (
                             <div key={assignment.id} className="flex items-center justify-between p-3 border rounded-md">
                               <div>

@@ -8,10 +8,10 @@
   },
   {
     "id": 2,
-    "title": "AGO",
+    "title": "Ag2r",
     "description": "",
     "date": "2025-04-26",
-    "duration": 250
+    "duration": 240
   },
   {
     "id": 3,
@@ -19,5 +19,12 @@
     "description": "Réunion spécifique sur le suivi des patients diabétiques",
     "date": "2023-02-01",
     "duration": 120
+  },
+  {
+    "id": 4,
+    "title": "Ag3r",
+    "description": null,
+    "date": "2025-04-26",
+    "duration": 200
   }
 ]
