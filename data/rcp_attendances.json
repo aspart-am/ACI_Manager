@@ -14,13 +14,7 @@
   {
     "id": 3,
     "rcpId": 1,
-    "associateId": 11,
-    "attended": true
-  },
-  {
-    "id": 4,
-    "rcpId": 1,
-    "associateId": 4,
+    "associateId": 1,
     "attended": true
   }
 ]
