@@ -1,30 +1,16 @@
 [
   {
     "id": 1,
-    "title": "RCP Mensuelle Janvier",
-    "description": "Réunion mensuelle de coordination pluriprofessionnelle",
-    "date": "2023-01-15",
+    "title": "RCP",
+    "description": " mensuellle",
+    "date": "2025-04-26",
     "duration": 60
   },
   {
     "id": 2,
-    "title": "Ag2r",
-    "description": "",
-    "date": "2025-04-26",
+    "title": "AG0",
+    "description": null,
+    "date": "2025-04-24",
     "duration": 240
-  },
-  {
-    "id": 3,
-    "title": "RCP Diabète",
-    "description": "Réunion spécifique sur le suivi des patients diabétiques",
-    "date": "2023-02-01",
-    "duration": 120
-  },
-  {
-    "id": 4,
-    "title": "Ag3r",
-    "description": "",
-    "date": "2025-04-26",
-    "duration": 180
   }
 ]
