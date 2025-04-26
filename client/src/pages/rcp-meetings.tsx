@@ -70,16 +70,6 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Type pour associé avec présence
-type AssociateWithAttendance = {
-  id: number;
-  name: string;
-  profession: string;
-  isManager: boolean;
-  attendanceId: number | null;
-  isPresent: boolean;
-};
-
 export default function RcpMeetings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -89,10 +79,6 @@ export default function RcpMeetings() {
   const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  
-  // État local pour les associés avec leur état de présence
-  const [associatesWithAttendance, setAssociatesWithAttendance] = useState<AssociateWithAttendance[]>([]);
-  const [isProcessingAttendance, setIsProcessingAttendance] = useState(false);
   
   // Gestion du formulaire avec react-hook-form et zod
   const form = useForm<FormValues>({
@@ -125,6 +111,9 @@ export default function RcpMeetings() {
     staleTime: 60000,
   });
   
+  // Sélectionner une réunion de la liste
+  const selectedMeeting = meetings.find((meeting: any) => meeting.id === selectedMeetingId);
+  
   // Récupération des présences pour la réunion sélectionnée
   const {
     data: attendances = [],
@@ -134,37 +123,9 @@ export default function RcpMeetings() {
   } = useQuery({
     queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
     enabled: !!selectedMeetingId,
+    refetchOnWindowFocus: true,
     staleTime: 0,
   });
-
-  // Récupération des données pour une réunion spécifique
-  const selectedMeeting = selectedMeetingId && meetings 
-    ? meetings.find((meeting: any) => meeting.id === selectedMeetingId) 
-    : null;
-  
-  // Mettre à jour l'état local des associés avec leur présence
-  useEffect(() => {
-    if (associates && associates.length > 0 && attendances && Array.isArray(attendances)) {
-      // Map des associés avec leur état de présence
-      const associatesData = associates.map((associate: any) => {
-        const attendance = attendances.find((a: any) => a.associateId === associate.id);
-        return {
-          id: associate.id,
-          name: associate.name,
-          profession: associate.profession,
-          isManager: associate.isManager,
-          attendanceId: attendance ? attendance.id : null,
-          isPresent: attendance ? attendance.attended : false
-        };
-      });
-      
-      // Compare avec l'état actuel pour éviter une boucle infinie
-      const isDifferent = JSON.stringify(associatesData) !== JSON.stringify(associatesWithAttendance);
-      if (isDifferent) {
-        setAssociatesWithAttendance(associatesData);
-      }
-    }
-  }, [associates, attendances]);
   
   // Initialiser le formulaire d'édition quand une réunion est sélectionnée
   const editForm = useForm<FormValues>({
@@ -235,21 +196,10 @@ export default function RcpMeetings() {
     mutationFn: ({ id, attended }: { id: number; attended: boolean }) => {
       return apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended });
     },
-    onSuccess: (data) => {
-      // Mettre à jour l'état local
-      setAssociatesWithAttendance(prev => 
-        prev.map(a => 
-          a.id === data.associateId 
-            ? { ...a, attendanceId: data.id, isPresent: data.attended }
-            : a
-        )
-      );
-      
+    onSuccess: () => {
       // Invalider les requêtes
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
       queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
-      
-      setIsProcessingAttendance(false);
     },
     onError: () => {
       toast({
@@ -258,7 +208,6 @@ export default function RcpMeetings() {
         variant: 'destructive',
       });
       
-      setIsProcessingAttendance(false);
       refetchAttendances();
     },
   });
@@ -268,21 +217,10 @@ export default function RcpMeetings() {
     mutationFn: ({ rcpId, associateId, attended }: { rcpId: number; associateId: number; attended: boolean }) => {
       return apiRequest('/api/rcp-attendances', 'POST', { rcpId, associateId, attended });
     },
-    onSuccess: (data) => {
-      // Mettre à jour l'état local
-      setAssociatesWithAttendance(prev => 
-        prev.map(a => 
-          a.id === data.associateId 
-            ? { ...a, attendanceId: data.id, isPresent: data.attended }
-            : a
-        )
-      );
-      
+    onSuccess: () => {
       // Invalider les requêtes
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
       queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
-      
-      setIsProcessingAttendance(false);
     },
     onError: () => {
       toast({
@@ -291,7 +229,6 @@ export default function RcpMeetings() {
         variant: 'destructive',
       });
       
-      setIsProcessingAttendance(false);
       refetchAttendances();
     },
   });
@@ -350,40 +287,24 @@ export default function RcpMeetings() {
   });
 
   // Gestion des présences/absences
-  const handleAttendanceChange = (associateId: number, isPresent: boolean) => {
-    if (!selectedMeetingId || isProcessingAttendance) return;
+  const handleAttendanceChange = (associateId: number, attended: boolean) => {
+    if (!selectedMeetingId) return;
     
-    // Éviter les requêtes multiples
-    setIsProcessingAttendance(true);
+    // Recherche d'une présence existante pour cet associé
+    const existingAttendance = attendances.find((a: any) => a.associateId === associateId);
     
-    // Mise à jour optimiste de l'interface
-    setAssociatesWithAttendance(prev => 
-      prev.map(a => 
-        a.id === associateId 
-          ? { ...a, isPresent }
-          : a
-      )
-    );
-    
-    // Trouver l'associé
-    const associate = associatesWithAttendance.find(a => a.id === associateId);
-    if (!associate) {
-      setIsProcessingAttendance(false);
-      return;
-    }
-    
-    if (associate.attendanceId) {
+    if (existingAttendance) {
       // Mise à jour d'une présence existante
       updateAttendanceMutation.mutate({ 
-        id: associate.attendanceId, 
-        attended: isPresent 
+        id: existingAttendance.id, 
+        attended 
       });
     } else {
       // Création d'une nouvelle présence
       createAttendanceMutation.mutate({ 
         rcpId: selectedMeetingId, 
         associateId, 
-        attended: isPresent 
+        attended 
       });
     }
   };
@@ -403,9 +324,17 @@ export default function RcpMeetings() {
     }
   };
   
+  // Vérifier si un associé est présent à la réunion
+  const isAttendanceChecked = (associateId: number): boolean => {
+    if (!attendances || !Array.isArray(attendances)) return false;
+    const attendance = attendances.find((a: any) => a.associateId === associateId);
+    return attendance ? attendance.attended : false;
+  };
+  
   // Compter le nombre d'associés présents
-  const getPresentCount = () => {
-    return associatesWithAttendance.filter(a => a.isPresent).length;
+  const getPresentCount = (): number => {
+    if (!attendances || !Array.isArray(attendances)) return 0;
+    return attendances.filter((a: any) => a.attended).length;
   };
 
   return (
@@ -532,7 +461,7 @@ export default function RcpMeetings() {
                     Réessayer
                   </Button>
                 </div>
-              ) : meetings.length === 0 ? (
+              ) : !Array.isArray(meetings) || meetings.length === 0 ? (
                 <div className="text-center py-8 space-y-3">
                   <Calendar className="w-12 h-12 mx-auto text-gray-300" />
                   <p>Aucune réunion RCP trouvée</p>
@@ -812,39 +741,42 @@ export default function RcpMeetings() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {associatesWithAttendance.map((associate) => (
-                        <div 
-                          key={associate.id} 
-                          className={`flex p-4 rounded-lg border transition-colors ${
-                            associate.isPresent 
-                              ? 'bg-green-50 border-green-200' 
-                              : 'bg-white hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="w-3/5 pr-2">
-                            <p className="font-medium">{associate.name}</p>
-                            <p className="text-sm text-muted-foreground">{associate.profession}</p>
-                            {associate.isManager && (
-                              <Badge className="mt-1" variant="outline">Co-gérant</Badge>
-                            )}
-                          </div>
-                          <div className="w-2/5 flex items-center justify-end">
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`attendance-${associate.id}`}
-                                checked={associate.isPresent}
-                                onCheckedChange={(checked) => {
-                                  handleAttendanceChange(associate.id, checked === true);
-                                }}
-                                disabled={isProcessingAttendance}
-                              />
-                              <Label htmlFor={`attendance-${associate.id}`} className="cursor-pointer whitespace-nowrap">
-                                {associate.isPresent ? 'Présent' : 'Absent'}
-                              </Label>
+                      {associates.map((associate: any) => {
+                        const isPresent = isAttendanceChecked(associate.id);
+                        
+                        return (
+                          <div 
+                            key={associate.id} 
+                            className={`flex p-4 rounded-lg border transition-colors ${
+                              isPresent 
+                                ? 'bg-green-50 border-green-200' 
+                                : 'bg-white hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-3/5 pr-2">
+                              <p className="font-medium">{associate.name}</p>
+                              <p className="text-sm text-muted-foreground">{associate.profession}</p>
+                              {associate.isManager && (
+                                <Badge className="mt-1" variant="outline">Co-gérant</Badge>
+                              )}
+                            </div>
+                            <div className="w-2/5 flex items-center justify-end">
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`attendance-${associate.id}`}
+                                  checked={isPresent}
+                                  onCheckedChange={(checked) => {
+                                    handleAttendanceChange(associate.id, checked === true);
+                                  }}
+                                />
+                                <Label htmlFor={`attendance-${associate.id}`} className="cursor-pointer whitespace-nowrap">
+                                  {isPresent ? 'Présent' : 'Absent'}
+                                </Label>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

@@ -61,17 +61,6 @@ const assignmentFormSchema = z.object({
   contribution: z.string().min(1, { message: 'La contribution est requise' }),
 });
 
-// Type pour une affectation à un projet
-type ProjectAssignment = {
-  id: number;
-  associateId: number;
-  projectId: number;
-  contribution: string;
-  associateName?: string;
-  associateProfession?: string;
-  associateIsManager?: boolean;
-};
-
 export default function Projects() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -150,9 +139,7 @@ export default function Projects() {
   });
   
   // Projet sélectionné
-  const selectedProject = selectedProjectId 
-    ? projects.find((p: any) => p.id === selectedProjectId) 
-    : null;
+  const selectedProject = projects.find((p: any) => p.id === selectedProjectId);
   
   // Mise à jour de la valeur par défaut du projectId dans le formulaire des affectations
   useEffect(() => {
@@ -409,7 +396,7 @@ export default function Projects() {
   
   // Fonction pour redistribuer équitablement les contributions entre tous les associés assignés à un projet
   const redistributeContributions = async () => {
-    if (!selectedProjectId || projectAssignments.length === 0) return;
+    if (!selectedProjectId || !Array.isArray(projectAssignments) || projectAssignments.length === 0) return;
     setIsProcessingAssignment(true);
     
     try {
@@ -453,7 +440,7 @@ export default function Projects() {
       });
       
       // Si autoDistribute est activé, redistribuer les contributions
-      if (autoDistribute && projectAssignments.length > 1) {
+      if (autoDistribute && Array.isArray(projectAssignments) && projectAssignments.length > 1) {
         setTimeout(() => {
           redistributeContributions();
         }, 300);
@@ -486,6 +473,7 @@ export default function Projects() {
   
   // Fonction pour vérifier si un associé est déjà assigné au projet
   const isAssociateAssignedToProject = (associateId: number): boolean => {
+    if (!Array.isArray(projectAssignments)) return false;
     return projectAssignments.some((assignment: any) => assignment.associateId === associateId);
   };
   
@@ -553,9 +541,11 @@ export default function Projects() {
   };
 
   // Calcul du total des contributions
-  const totalContribution = projectAssignments.reduce((total: number, assignment: any) => {
-    return total + parseFloat(assignment.contribution);
-  }, 0);
+  const totalContribution = Array.isArray(projectAssignments) 
+    ? projectAssignments.reduce((total: number, assignment: any) => {
+        return total + parseFloat(assignment.contribution);
+      }, 0)
+    : 0;
   
   // État de l'équilibre des contributions
   const isBalanced = Math.abs(totalContribution - 100) < 0.1;
@@ -725,7 +715,7 @@ export default function Projects() {
                     Réessayer
                   </Button>
                 </div>
-              ) : projects.length === 0 ? (
+              ) : !Array.isArray(projects) || projects.length === 0 ? (
                 <div className="text-center py-8 space-y-3">
                   <Briefcase className="w-12 h-12 mx-auto text-gray-300" />
                   <p>Aucun projet trouvé</p>
@@ -1052,7 +1042,7 @@ export default function Projects() {
                                         </SelectTrigger>
                                       </FormControl>
                                       <SelectContent>
-                                        {associates
+                                        {Array.isArray(associates) && associates
                                           .filter((a: any) => !isAssociateAssignedToProject(a.id))
                                           .map((associate: any) => (
                                             <SelectItem key={associate.id} value={associate.id.toString()}>
@@ -1144,7 +1134,7 @@ export default function Projects() {
                         </Button>
                       </div>
                     </div>
-                  ) : projectAssignments.length === 0 ? (
+                  ) : !Array.isArray(projectAssignments) || projectAssignments.length === 0 ? (
                     <div className="text-center p-8 bg-gray-50 rounded border">
                       <p>Aucun associé n'est affecté à ce projet.</p>
                       <p className="text-sm text-muted-foreground mt-2">
@@ -1165,21 +1155,21 @@ export default function Projects() {
                       )}
                       
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {projectAssignments.map((assignment: ProjectAssignment) => {
-                          const associate = associates.find((a: any) => a.id === assignment.associateId);
-                          const associateName = associate ? associate.name : `Associé ${assignment.associateId}`;
-                          const associateProfession = associate ? associate.profession : '';
-                          const associateIsManager = associate ? associate.isManager : false;
-                          
+                        {projectAssignments.map((assignment: any) => {
+                          const associateId = assignment.associateId;
+                          const associate = Array.isArray(associates) 
+                            ? associates.find((a: any) => a.id === associateId) 
+                            : null;
+                            
                           return (
                             <div 
                               key={assignment.id} 
                               className="flex p-4 rounded-lg border transition-colors hover:bg-gray-50"
                             >
                               <div className="w-3/5 pr-2">
-                                <p className="font-medium">{associateName}</p>
-                                <p className="text-sm text-muted-foreground">{associateProfession}</p>
-                                {associateIsManager && (
+                                <p className="font-medium">{associate ? associate.name : `Associé ${associateId}`}</p>
+                                <p className="text-sm text-muted-foreground">{associate ? associate.profession : ''}</p>
+                                {associate && associate.isManager && (
                                   <Badge className="mt-1" variant="outline">Co-gérant</Badge>
                                 )}
                               </div>
