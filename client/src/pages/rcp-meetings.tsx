@@ -144,7 +144,7 @@ export default function RcpMeetings() {
   
   // Mettre à jour l'état local des associés avec leur présence
   useEffect(() => {
-    if (associates && associates.length > 0 && attendances) {
+    if (associates && associates.length > 0 && attendances && Array.isArray(attendances)) {
       // Map des associés avec leur état de présence
       const associatesData = associates.map((associate: any) => {
         const attendance = attendances.find((a: any) => a.associateId === associate.id);
@@ -158,7 +158,11 @@ export default function RcpMeetings() {
         };
       });
       
-      setAssociatesWithAttendance(associatesData);
+      // Compare avec l'état actuel pour éviter une boucle infinie
+      const isDifferent = JSON.stringify(associatesData) !== JSON.stringify(associatesWithAttendance);
+      if (isDifferent) {
+        setAssociatesWithAttendance(associatesData);
+      }
     }
   }, [associates, attendances]);
   

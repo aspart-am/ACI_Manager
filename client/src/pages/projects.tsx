@@ -146,6 +146,7 @@ export default function Projects() {
     queryKey: ['/api/projects', selectedProjectId, 'assignments'],
     enabled: !!selectedProjectId,
     staleTime: 0,
+    refetchOnWindowFocus: true
   });
   
   // Projet sélectionné

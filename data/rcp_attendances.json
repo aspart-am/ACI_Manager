@@ -20,19 +20,7 @@
   {
     "id": 4,
     "rcpId": 1,
-    "associateId": 16,
-    "attended": true
-  },
-  {
-    "id": 5,
-    "rcpId": 1,
-    "associateId": 10,
-    "attended": true
-  },
-  {
-    "id": 6,
-    "rcpId": 1,
-    "associateId": 8,
+    "associateId": 4,
     "attended": true
   }
 ]

@@ -1,10 +1,10 @@
 [
   {
     "id": 1,
-    "title": "Projet",
+    "title": "RPPJET",
     "description": null,
     "startDate": "2025-04-26",
-    "endDate": null,
+    "endDate": "2025-04-26",
     "status": "active",
     "weight": 1
   }
