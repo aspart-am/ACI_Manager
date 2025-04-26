@@ -277,13 +277,14 @@ export default function RcpMeetings() {
         }
       );
       
-      // Invalider les autres requêtes qui dépendent de cette donnée
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] }); 
-      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      // Invalider explicitement toutes les requêtes pour forcer un rafraîchissement complet
+      queryClient.invalidateQueries(); 
       
-      // Forcer un recalcul de la distribution après un délai pour s'assurer que les changements soient pris en compte
+      // Refetch explicite des présences pour s'assurer que les changements sont pris en compte
+      refetchAttendances();
+      
+      // Forcer un recalcul de la distribution après un délai
       setTimeout(() => {
-        // Refetch explicite de la distribution
         queryClient.fetchQuery({ queryKey: ['/api/distribution/calculation'] });
       }, 300);
     },
@@ -345,13 +346,20 @@ export default function RcpMeetings() {
         }
       );
       
-      // Invalider les autres requêtes qui dépendent de cette donnée
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      // Invalider explicitement toutes les requêtes pour forcer un rafraîchissement complet
+      queryClient.invalidateQueries();
       
-      // Forcer un recalcul de la distribution après un délai pour s'assurer que les changements soient pris en compte
+      // Refetch explicite des présences pour s'assurer que les changements sont pris en compte
+      refetchAttendances();
+      
+      // Mettre à jour la réunion sélectionnée aussi
+      if (selectedMeetingId) {
+        // Force refresh of meeting data
+        queryClient.fetchQuery({ queryKey: ['/api/rcp-meetings'] });
+      }
+      
+      // Forcer un recalcul de la distribution après un délai
       setTimeout(() => {
-        // Refetch explicite de la distribution
         queryClient.fetchQuery({ queryKey: ['/api/distribution/calculation'] });
       }, 300);
     },

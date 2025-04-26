@@ -1,17 +1,5 @@
 [
   {
-    "id": 1,
-    "weight": "1"
-  },
-  {
-    "id": 2,
-    "weight": "4"
-  },
-  {
-    "id": 3,
-    "weight": "2"
-  },
-  {
     "id": 4,
     "title": "DTII",
     "description": null,
