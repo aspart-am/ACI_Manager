@@ -10,12 +10,7 @@
   },
   {
     "id": 2,
-    "title": "Téléconsultation",
-    "description": "Mise en place d'un système de téléconsultation pour les patients éloignés",
-    "startDate": "2023-03-15",
-    "endDate": null,
-    "status": "active",
-    "weight": "1.2"
+    "weight": "4"
   },
   {
     "id": 3,

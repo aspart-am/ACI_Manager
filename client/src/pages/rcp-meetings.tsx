@@ -66,8 +66,10 @@ export default function RcpMeetings() {
     queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
     enabled: !!selectedMeetingId,
     // Activer le refetch automatique et réduire le staleTime pour plus de synchronisation
-    staleTime: 10000,
-    refetchInterval: 15000,
+    staleTime: 0, // Réduire staleTime à 0 pour forcer la validation des données
+    refetchInterval: 5000, // Réduire l'intervalle de rafraichissement
+    refetchOnWindowFocus: true, // Rafraichir quand la fenêtre reprend le focus
+    retry: 3, // Réessayer 3 fois en cas d'échec
   }) as { 
     data: any[], 
     refetch: () => void, 
@@ -340,7 +342,48 @@ export default function RcpMeetings() {
       return;
     }
     
+    // Optimistic update - mettre à jour l'interface immédiatement pour une meilleure réactivité
+    // Cette technique simule la mise à jour locale avant confirmation par le serveur
+    const optimisticUpdate = (isAttending: boolean) => {
+      // Mise à jour optimiste pour les composants d'interface qui utilisent isAssociatePresent
+      queryClient.setQueryData(
+        ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
+        (oldData: any) => {
+          if (!oldData || !Array.isArray(oldData)) return oldData;
+          
+          // Rechercher si l'associé est déjà dans la liste
+          const index = oldData.findIndex((a: any) => a.associateId === associateId);
+          
+          if (index >= 0) {
+            // Mise à jour d'une présence existante
+            const newData = [...oldData];
+            newData[index] = {
+              ...newData[index],
+              attended: isAttending
+            };
+            return newData;
+          } else if (isAttending) {
+            // Ajout d'une nouvelle présence optimiste
+            return [
+              ...oldData,
+              {
+                id: `temp-${Date.now()}`, // ID temporaire qui sera remplacé par l'ID réel
+                rcpId: selectedMeetingId,
+                associateId,
+                attended: isAttending
+              }
+            ];
+          }
+          
+          return oldData;
+        }
+      );
+    };
+    
     try {
+      // Appliquer la mise à jour optimiste immédiatement
+      optimisticUpdate(isPresent);
+      
       if (attendanceId) {
         // Mise à jour d'une présence existante
         console.log(`Mise à jour d'une présence existante: ID ${attendanceId}, présent: ${isPresent}`);
@@ -372,6 +415,9 @@ export default function RcpMeetings() {
         description: 'Une erreur est survenue lors de la gestion des présences.',
         variant: 'destructive',
       });
+      
+      // Annuler la mise à jour optimiste en cas d'erreur
+      refetchAttendances();
     }
   };
 

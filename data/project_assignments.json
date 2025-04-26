@@ -15,7 +15,7 @@
     "id": 3,
     "associateId": 1,
     "projectId": 2,
-    "contribution": "50"
+    "contribution": "33.33"
   },
   {
     "id": 4,
@@ -33,12 +33,18 @@
     "id": 6,
     "associateId": 7,
     "projectId": 2,
-    "contribution": "50"
+    "contribution": "33.33"
   },
   {
     "id": 7,
     "associateId": 1,
     "projectId": 3,
     "contribution": "50"
+  },
+  {
+    "id": 8,
+    "associateId": 13,
+    "projectId": 2,
+    "contribution": "33.33"
   }
 ]
