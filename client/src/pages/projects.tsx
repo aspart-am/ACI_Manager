@@ -167,15 +167,29 @@ export default function Projects() {
   const updateProjectWeightMutation = useMutation({
     mutationFn: (data: { id: number, weight: string }) => 
       apiRequest(`/api/projects/${data.id}`, 'PATCH', { weight: data.weight }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+    onSuccess: (data, variables) => {
+      // Mise à jour optimiste du cache pour éviter le changement de statut
+      queryClient.setQueryData(['/api/projects'], (oldData: any) => {
+        if (!oldData || !Array.isArray(oldData)) return oldData;
+        
+        return oldData.map((project: any) => {
+          if (project.id === variables.id) {
+            // Mettre à jour le poids tout en conservant les autres propriétés
+            return { ...project, weight: variables.weight };
+          }
+          return project;
+        });
+      });
+      
+      // Invalider le calcul de distribution pour refléter le nouveau poids
       queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
       toast({
         title: 'Poids modifié',
         description: 'Le poids du projet a été modifié avec succès.',
       });
+      
       setIsWeightEditDialogOpen(false);
-      refetchProjects();
     },
     onError: (error) => {
       toast({
@@ -184,6 +198,9 @@ export default function Projects() {
         variant: 'destructive',
       });
       console.error('Erreur lors de la modification du poids du projet:', error);
+      
+      // En cas d'erreur, recharger les données complètes
+      refetchProjects();
     },
   });
 

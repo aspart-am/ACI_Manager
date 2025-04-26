@@ -207,8 +207,10 @@ export async function calculateDistribution(year: number = new Date().getFullYea
         
         if (project) {
           // Pondérer la contribution par le poids du projet
-          const projectWeight = parseFloat(project.weight || '1.0');
+          const projectWeight = parseFloat(project.weight?.toString() || '1.0');
           const weightedContribution = projectWeight * contributionValue;
+          
+          console.log(`Projet ${project.id} (${project.title}): poids ${projectWeight}, contribution ${contributionValue}%, pondérée ${weightedContribution}`);
           
           contributionByAssociate[associateId] = (contributionByAssociate[associateId] || 0) + weightedContribution;
           totalContribution += weightedContribution;

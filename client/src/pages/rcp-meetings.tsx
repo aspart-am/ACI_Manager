@@ -253,20 +253,39 @@ export default function RcpMeetings() {
       console.log(`Mise à jour de la présence ${id} -> ${attended}`);
       return apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended });
     },
-    onSuccess: () => {
-      // Force un rafraîchissement complet des données critiques
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] }); 
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+    onSuccess: (data) => {
+      console.log("Présence mise à jour avec succès:", data);
+
+      // Mettre à jour le cache avec les nouvelles données de présence
+      queryClient.setQueryData(
+        ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
+        (oldData: any) => {
+          if (!oldData || !Array.isArray(oldData)) return oldData;
+          
+          // Rechercher l'index de l'élément mis à jour
+          const index = oldData.findIndex((a: any) => a.id === data.id);
+          
+          // Si l'élément existe, le mettre à jour
+          if (index >= 0) {
+            const newData = [...oldData];
+            newData[index] = data;
+            return newData;
+          }
+          
+          // Sinon, ajouter le nouveau
+          return [...oldData, data];
+        }
+      );
       
-      // Refetch immédiat des présences pour mettre à jour l'interface
-      refetchAttendances();
+      // Invalider les autres requêtes qui dépendent de cette donnée
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] }); 
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
       
       // Forcer un recalcul de la distribution après un délai pour s'assurer que les changements soient pris en compte
       setTimeout(() => {
         // Refetch explicite de la distribution
         queryClient.fetchQuery({ queryKey: ['/api/distribution/calculation'] });
-      }, 500);
+      }, 300);
     },
     onError: (error: any) => {
       console.error('Erreur détaillée lors de la mise à jour de la présence:', error);
@@ -275,6 +294,9 @@ export default function RcpMeetings() {
         description: error?.message || 'Impossible de mettre à jour la présence.',
         variant: 'destructive',
       });
+      
+      // En cas d'erreur, recharger les données pour annuler les changements optimistes
+      refetchAttendances();
     },
   });
 
@@ -288,20 +310,50 @@ export default function RcpMeetings() {
         attended 
       });
     },
-    onSuccess: () => {
-      // Force un rafraîchissement complet des données critiques
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+    onSuccess: (data) => {
+      console.log("Nouvelle présence créée avec succès:", data);
       
-      // Refetch immédiat des présences pour mettre à jour l'interface
-      refetchAttendances();
+      // Mettre à jour le cache avec les nouvelles données de présence
+      queryClient.setQueryData(
+        ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
+        (oldData: any) => {
+          if (!oldData || !Array.isArray(oldData)) return [data];
+          
+          // Rechercher si l'élément temporaire existe (remplacer notre ID temporaire)
+          const tempIndex = oldData.findIndex((a: any) => 
+            typeof a.id === 'string' && a.id.startsWith('temp-') && a.associateId === data.associateId
+          );
+          
+          if (tempIndex >= 0) {
+            // Remplacer l'élément temporaire par l'élément réel du serveur
+            const newData = [...oldData];
+            newData[tempIndex] = data;
+            return newData;
+          }
+          
+          // Vérifier si l'associé a déjà une entrée
+          const existingIndex = oldData.findIndex((a: any) => a.associateId === data.associateId);
+          if (existingIndex >= 0) {
+            // Mettre à jour l'entrée existante
+            const newData = [...oldData];
+            newData[existingIndex] = data;
+            return newData;
+          }
+          
+          // Sinon, ajouter la nouvelle entrée
+          return [...oldData, data];
+        }
+      );
+      
+      // Invalider les autres requêtes qui dépendent de cette donnée
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
       
       // Forcer un recalcul de la distribution après un délai pour s'assurer que les changements soient pris en compte
       setTimeout(() => {
         // Refetch explicite de la distribution
         queryClient.fetchQuery({ queryKey: ['/api/distribution/calculation'] });
-      }, 500);
+      }, 300);
     },
     onError: (error: any) => {
       console.error('Erreur détaillée lors de l\'ajout de la présence:', error);
@@ -310,6 +362,9 @@ export default function RcpMeetings() {
         description: error?.message || 'Impossible d\'ajouter la présence.',
         variant: 'destructive',
       });
+      
+      // En cas d'erreur, recharger les données pour annuler les changements optimistes
+      refetchAttendances();
     },
   });
 
