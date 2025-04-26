@@ -10,5 +10,11 @@
     "associateId": 4,
     "projectId": 1,
     "contribution": "50"
+  },
+  {
+    "id": 3,
+    "associateId": 1,
+    "projectId": 2,
+    "contribution": "100"
   }
 ]

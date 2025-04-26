@@ -37,14 +37,14 @@
   {
     "id": 6,
     "key": "rcp_attendance_weight",
-    "value": "1.2",
+    "value": "0.4",
     "category": "distribution",
     "description": "Facteur de pondération pour la présence aux RCP"
   },
   {
     "id": 7,
     "key": "project_contribution_weight",
-    "value": "1",
+    "value": "0.6",
     "category": "distribution",
     "description": "Facteur de pondération pour l'implication dans les projets"
   }

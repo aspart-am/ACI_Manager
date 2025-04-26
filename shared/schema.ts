@@ -1,281 +1,180 @@
-import { pgTable, text, serial, integer, boolean, date, numeric, timestamp } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User model
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  fullName: text("full_name").notNull(),
-  role: text("role").notNull().default("user"),
+// User schema
+export const userSchema = z.object({
+  id: z.number(),
+  username: z.string(),
+  password: z.string(),
+  fullName: z.string(),
+  role: z.string().default("user"),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  fullName: true,
-  role: true,
+export const insertUserSchema = userSchema.omit({ id: true });
+
+// Associate schema 
+export const associateSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  profession: z.string(),
+  isManager: z.boolean().default(false),
+  joinDate: z.string(), // Date as ISO string
+  patientCount: z.number().optional(),
+  participationWeight: z.union([z.number(), z.string()]).transform(val => 
+    typeof val === 'string' ? parseFloat(val) : val
+  ).default(1),
 });
 
-// Associate model
-export const associates = pgTable("associates", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  profession: text("profession").notNull(),
-  isManager: boolean("is_manager").notNull().default(false),
-  joinDate: date("join_date").notNull(),
-  patientCount: integer("patient_count").default(0),
-  participationWeight: numeric("participation_weight").notNull().default("1"),
+export const insertAssociateSchema = associateSchema.omit({ id: true });
+
+// Expense schema
+export const expenseSchema = z.object({
+  id: z.number(),
+  category: z.string(),
+  description: z.string(),
+  amount: z.union([z.number(), z.string()]).transform(val => 
+    typeof val === 'string' ? parseFloat(val) : val
+  ),
+  date: z.string(), // Date as ISO string
+  isRecurring: z.boolean().default(false),
+  frequency: z.string().default("monthly"),
 });
 
-export const associatesRelations = relations(associates, ({ many }) => ({
-  rcpAttendances: many(rcpAttendance),
-  projectAssignments: many(projectAssignments),
-  missionAssignments: many(missionAssignments)
-}));
+export const insertExpenseSchema = expenseSchema.omit({ id: true });
 
-export const insertAssociateSchema = createInsertSchema(associates).pick({
-  name: true,
-  profession: true,
-  isManager: true,
-  joinDate: true,
-  patientCount: true,
-  participationWeight: true,
+// Revenue schema
+export const revenueSchema = z.object({
+  id: z.number(),
+  source: z.string(),
+  description: z.string(),
+  amount: z.union([z.number(), z.string()]).transform(val => 
+    typeof val === 'string' ? parseFloat(val) : val
+  ),
+  date: z.string(), // Date as ISO string
+  category: z.string(),
 });
 
-// Expense model
-export const expenses = pgTable("expenses", {
-  id: serial("id").primaryKey(),
-  category: text("category").notNull(),
-  description: text("description").notNull(),
-  amount: numeric("amount").notNull(),
-  date: date("date").notNull(),
-  isRecurring: boolean("is_recurring").notNull().default(false),
-  frequency: text("frequency").default("monthly"),
+export const insertRevenueSchema = revenueSchema.omit({ id: true });
+
+// RCP Meeting schema
+export const rcpMeetingSchema = z.object({
+  id: z.number(),
+  date: z.string(), // Date as ISO string
+  title: z.string(),
+  description: z.string().optional(),
+  duration: z.union([z.number(), z.string()]).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ).default(60), // Durée en minutes (défaut 1h)
 });
 
-export const insertExpenseSchema = createInsertSchema(expenses).pick({
-  category: true,
-  description: true,
-  amount: true,
-  date: true,
-  isRecurring: true,
-  frequency: true,
+export const insertRcpMeetingSchema = rcpMeetingSchema.omit({ id: true });
+
+// RCP Attendance schema
+export const rcpAttendanceSchema = z.object({
+  id: z.number(),
+  rcpId: z.number(),
+  associateId: z.number(),
+  attended: z.boolean().default(false),
 });
 
-// Revenue model
-export const revenues = pgTable("revenues", {
-  id: serial("id").primaryKey(),
-  source: text("source").notNull(),
-  description: text("description").notNull(),
-  amount: numeric("amount").notNull(),
-  date: date("date").notNull(),
-  category: text("category").notNull(),
+export const insertRcpAttendanceSchema = rcpAttendanceSchema.omit({ id: true });
+
+// Accessory Mission schema
+export const accessoryMissionSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  description: z.string().optional(),
+  startDate: z.string(), // Date as ISO string
+  endDate: z.string().optional(), // Date as ISO string
+  status: z.string().default("active"),
+  budget: z.union([z.number(), z.string()]).transform(val => 
+    typeof val === 'string' ? parseFloat(val) : val
+  ).default(0),
+  type: z.string().default("santé publique"),
+  year: z.number(),
 });
 
-export const insertRevenueSchema = createInsertSchema(revenues).pick({
-  source: true,
-  description: true,
-  amount: true,
-  date: true,
-  category: true,
+export const insertAccessoryMissionSchema = accessoryMissionSchema.omit({ id: true });
+
+// Mission Assignment schema
+export const missionAssignmentSchema = z.object({
+  id: z.number(),
+  missionId: z.number(),
+  associateId: z.number(),
+  contributionPercentage: z.union([z.number(), z.string()]).transform(val => 
+    typeof val === 'string' ? parseFloat(val) : val
+  ).default(100),
 });
 
-// RCP (Réunion de Concertation Pluriprofessionnelle) model
-export const rcpMeetings = pgTable("rcp_meetings", {
-  id: serial("id").primaryKey(),
-  date: date("date").notNull(),
-  title: text("title").notNull(),
-  description: text("description"),
-  duration: integer("duration").default(60), // Durée en minutes (défaut 1h)
+export const insertMissionAssignmentSchema = missionAssignmentSchema.omit({ id: true });
+
+// Project schema
+export const projectSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  description: z.string().optional(),
+  startDate: z.string(), // Date as ISO string
+  endDate: z.string().optional(), // Date as ISO string
+  status: z.string().default("active"),
+  weight: z.union([z.number(), z.string()]).transform(val => 
+    typeof val === 'string' ? parseFloat(val) : val
+  ).default(1),
 });
 
-export const rcpAttendance = pgTable("rcp_attendance", {
-  id: serial("id").primaryKey(),
-  rcpId: integer("rcp_id").notNull().references(() => rcpMeetings.id),
-  associateId: integer("associate_id").notNull().references(() => associates.id),
-  attended: boolean("attended").notNull().default(false),
+export const insertProjectSchema = projectSchema.omit({ id: true });
+
+// Project Assignment schema
+export const projectAssignmentSchema = z.object({
+  id: z.number(),
+  projectId: z.number(),
+  associateId: z.number(),
+  contribution: z.union([z.number(), z.string()]).transform(val => 
+    typeof val === 'string' ? parseFloat(val) : val
+  ).default(1),
 });
 
-export const rcpMeetingsRelations = relations(rcpMeetings, ({ many }) => ({
-  attendances: many(rcpAttendance),
-}));
+export const insertProjectAssignmentSchema = projectAssignmentSchema.omit({ id: true });
 
-export const rcpAttendanceRelations = relations(rcpAttendance, ({ one }) => ({
-  meeting: one(rcpMeetings, {
-    fields: [rcpAttendance.rcpId],
-    references: [rcpMeetings.id]
-  }),
-  associate: one(associates, {
-    fields: [rcpAttendance.associateId],
-    references: [associates.id]
-  })
-}));
-
-export const insertRcpMeetingSchema = createInsertSchema(rcpMeetings).pick({
-  date: true,
-  title: true,
-  description: true,
-  duration: true,
+// Setting schema
+export const settingSchema = z.object({
+  id: z.number(),
+  key: z.string(),
+  value: z.string(),
+  category: z.string(),
+  description: z.string().optional(),
 });
 
-export const insertRcpAttendanceSchema = createInsertSchema(rcpAttendance).pick({
-  rcpId: true,
-  associateId: true,
-  attended: true,
-});
-
-// Missions accessoires model
-export const accessoryMissions = pgTable("accessory_missions", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date"),
-  status: text("status").notNull().default("active"),
-  budget: numeric("budget").notNull().default("0"),
-  type: text("type").notNull().default("santé publique"), // "santé publique", "crise sanitaire", "coopération", etc.
-  year: integer("year").notNull(),
-});
-
-// Missions assignments
-export const missionAssignments = pgTable("mission_assignments", {
-  id: serial("id").primaryKey(),
-  missionId: integer("mission_id").notNull().references(() => accessoryMissions.id),
-  associateId: integer("associate_id").notNull().references(() => associates.id),
-  contributionPercentage: numeric("contribution_percentage").notNull().default("100"),
-});
-
-// Définir les relations
-export const accessoryMissionsRelations = relations(accessoryMissions, ({ many }) => ({
-  assignments: many(missionAssignments)
-}));
-
-export const missionAssignmentsRelations = relations(missionAssignments, ({ one }) => ({
-  mission: one(accessoryMissions, {
-    fields: [missionAssignments.missionId],
-    references: [accessoryMissions.id]
-  }),
-  associate: one(associates, {
-    fields: [missionAssignments.associateId],
-    references: [associates.id]
-  })
-}));
-
-// Schemas d'insertion
-export const insertAccessoryMissionSchema = createInsertSchema(accessoryMissions).pick({
-  title: true,
-  description: true,
-  startDate: true,
-  endDate: true,
-  status: true,
-  budget: true,
-  type: true,
-  year: true,
-});
-
-export const insertMissionAssignmentSchema = createInsertSchema(missionAssignments).pick({
-  missionId: true,
-  associateId: true,
-  contributionPercentage: true,
-});
-
-// Project / Task model
-export const projects = pgTable("projects", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date"),
-  status: text("status").notNull().default("active"),
-  weight: numeric("weight").notNull().default("1"),
-});
-
-export const projectAssignments = pgTable("project_assignments", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => projects.id),
-  associateId: integer("associate_id").notNull().references(() => associates.id),
-  contribution: numeric("contribution").notNull().default("1"),
-});
-
-export const projectsRelations = relations(projects, ({ many }) => ({
-  assignments: many(projectAssignments)
-}));
-
-export const projectAssignmentsRelations = relations(projectAssignments, ({ one }) => ({
-  project: one(projects, {
-    fields: [projectAssignments.projectId],
-    references: [projects.id]
-  }),
-  associate: one(associates, {
-    fields: [projectAssignments.associateId],
-    references: [associates.id]
-  })
-}));
-
-export const insertProjectSchema = createInsertSchema(projects).pick({
-  title: true,
-  description: true,
-  startDate: true,
-  endDate: true,
-  status: true,
-  weight: true,
-});
-
-export const insertProjectAssignmentSchema = createInsertSchema(projectAssignments).pick({
-  projectId: true,
-  associateId: true,
-  contribution: true,
-});
-
-// Settings model
-export const settings = pgTable("settings", {
-  id: serial("id").primaryKey(),
-  key: text("key").notNull().unique(),
-  value: text("value").notNull(),
-  category: text("category").notNull(),
-  description: text("description"),
-});
-
-export const insertSettingSchema = createInsertSchema(settings).pick({
-  key: true,
-  value: true,
-  category: true,
-  description: true,
-});
+export const insertSettingSchema = settingSchema.omit({ id: true });
 
 // Exported types
+export type User = z.infer<typeof userSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
 
+export type Associate = z.infer<typeof associateSchema>;
 export type InsertAssociate = z.infer<typeof insertAssociateSchema>;
-export type Associate = typeof associates.$inferSelect;
 
+export type Expense = z.infer<typeof expenseSchema>;
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
-export type Expense = typeof expenses.$inferSelect;
 
+export type Revenue = z.infer<typeof revenueSchema>;
 export type InsertRevenue = z.infer<typeof insertRevenueSchema>;
-export type Revenue = typeof revenues.$inferSelect;
 
+export type RcpMeeting = z.infer<typeof rcpMeetingSchema>;
 export type InsertRcpMeeting = z.infer<typeof insertRcpMeetingSchema>;
-export type RcpMeeting = typeof rcpMeetings.$inferSelect;
 
+export type RcpAttendance = z.infer<typeof rcpAttendanceSchema>;
 export type InsertRcpAttendance = z.infer<typeof insertRcpAttendanceSchema>;
-export type RcpAttendance = typeof rcpAttendance.$inferSelect;
 
+export type Project = z.infer<typeof projectSchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
-export type Project = typeof projects.$inferSelect;
 
+export type ProjectAssignment = z.infer<typeof projectAssignmentSchema>;
 export type InsertProjectAssignment = z.infer<typeof insertProjectAssignmentSchema>;
-export type ProjectAssignment = typeof projectAssignments.$inferSelect;
 
+export type AccessoryMission = z.infer<typeof accessoryMissionSchema>;
 export type InsertAccessoryMission = z.infer<typeof insertAccessoryMissionSchema>;
-export type AccessoryMission = typeof accessoryMissions.$inferSelect;
 
+export type MissionAssignment = z.infer<typeof missionAssignmentSchema>;
 export type InsertMissionAssignment = z.infer<typeof insertMissionAssignmentSchema>;
-export type MissionAssignment = typeof missionAssignments.$inferSelect;
 
+export type Setting = z.infer<typeof settingSchema>;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
-export type Setting = typeof settings.$inferSelect;
