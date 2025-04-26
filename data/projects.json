@@ -1,11 +1,11 @@
 [
   {
     "id": 1,
-    "title": "PROJET",
-    "description": null,
+    "title": "G2O",
+    "description": "",
     "startDate": "2025-04-26",
-    "endDate": null,
+    "endDate": "",
     "status": "active",
-    "weight": 1
+    "weight": "5"
   }
 ]
