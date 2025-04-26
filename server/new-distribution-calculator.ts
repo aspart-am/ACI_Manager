@@ -197,17 +197,37 @@ export async function calculateDistribution(year: number = new Date().getFullYea
       let totalContribution = 0;
       const contributionByAssociate: Record<number, number> = {};
       
+      // D'abord, calculer le total des contributions par projet pour normalisation
+      const projectTotals: Record<number, { total: number, weight: number }> = {};
+      
+      for (const project of activeProjects) {
+        const projectId = project.id;
+        const assignments = projectAssignments.filter(a => a.projectId === projectId);
+        const total = assignments.reduce((sum, a) => sum + parseFloat(a.contribution), 0);
+        const weight = parseFloat(project.weight?.toString() || '1.0');
+        
+        projectTotals[projectId] = { total, weight };
+      }
+      
+      // Ensuite, traiter chaque affectation
       for (const assignment of projectAssignments) {
         const projectId = assignment.projectId;
         const associateId = assignment.associateId;
-        const contributionValue = parseFloat(assignment.contribution);
+        let contributionValue = parseFloat(assignment.contribution);
         
         // Trouver le projet correspondant
         const project = activeProjects.find(p => p.id === projectId);
         
         if (project) {
+          const projectTotal = projectTotals[projectId]?.total || 100;
+          const projectWeight = projectTotals[projectId]?.weight || 1.0;
+          
+          // Normaliser la contribution si nécessaire
+          if (projectTotal !== 100 && projectTotal > 0) {
+            contributionValue = (contributionValue / projectTotal) * 100;
+          }
+          
           // Pondérer la contribution par le poids du projet
-          const projectWeight = parseFloat(project.weight?.toString() || '1.0');
           const weightedContribution = projectWeight * contributionValue;
           
           console.log(`Projet ${project.id} (${project.title}): poids ${projectWeight}, contribution ${contributionValue}%, pondérée ${weightedContribution}`);

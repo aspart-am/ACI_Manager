@@ -1,14 +1,8 @@
 [
   {
     "id": 1,
-    "associateId": 14,
+    "associateId": 13,
     "projectId": 1,
-    "contribution": 100
-  },
-  {
-    "id": 2,
-    "associateId": 4,
-    "projectId": 1,
-    "contribution": 50
+    "contribution": "100"
   }
 ]
