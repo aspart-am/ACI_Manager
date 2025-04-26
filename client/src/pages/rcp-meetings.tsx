@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,9 +16,7 @@ import {
   Info,
   RefreshCw,
   Loader2,
-  AlertCircle,
-  CheckCircle,
-  AlignJustify
+  AlertCircle
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -72,15 +70,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Type pour une entrée de présence
-type AttendanceRecord = {
-  id?: number;
-  rcpId: number;
-  associateId: number;
-  attended: boolean;
-};
-
-// Type pour les associés avec leur état de présence
+// Type pour associé avec présence
 type AssociateWithAttendance = {
   id: number;
   name: string;
@@ -90,35 +80,9 @@ type AssociateWithAttendance = {
   isPresent: boolean;
 };
 
-// Clé de localStorage pour les données persistantes
-const ATTENDANCE_STORAGE_KEY = 'rcp-attendance-data';
-
-// Fonction pour sauvegarder les données dans localStorage
-const saveToLocalStorage = (data: Record<string, AttendanceRecord[]>) => {
-  try {
-    localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.error("Erreur lors de la sauvegarde dans localStorage:", e);
-  }
-};
-
-// Fonction pour récupérer les données de localStorage
-const getFromLocalStorage = (): Record<string, AttendanceRecord[]> => {
-  try {
-    const data = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
-    return data ? JSON.parse(data) : {};
-  } catch (e) {
-    console.error("Erreur lors de la récupération depuis localStorage:", e);
-    return {};
-  }
-};
-
 export default function RcpMeetings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // Référence pour suivre si le composant est monté
-  const isMounted = useRef(true);
   
   // État local pour les dialogues
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -126,26 +90,9 @@ export default function RcpMeetings() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
-  // État local pour garder le suivi des présences
-  const [associateAttendance, setAssociateAttendance] = useState<AssociateWithAttendance[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  // État pour le stockage persistant des présences
-  const [storedAttendances, setStoredAttendances] = useState<Record<string, AttendanceRecord[]>>(
-    getFromLocalStorage()
-  );
-  
-  // Effet pour gérer le démontage du composant
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-  
-  // Effet pour synchroniser les modifications de storedAttendances avec localStorage
-  useEffect(() => {
-    saveToLocalStorage(storedAttendances);
-  }, [storedAttendances]);
+  // État local pour les associés avec leur état de présence
+  const [associatesWithAttendance, setAssociatesWithAttendance] = useState<AssociateWithAttendance[]>([]);
+  const [isProcessingAttendance, setIsProcessingAttendance] = useState(false);
   
   // Gestion du formulaire avec react-hook-form et zod
   const form = useForm<FormValues>({
@@ -157,7 +104,7 @@ export default function RcpMeetings() {
       duration: 60,
     },
   });
-
+  
   // Récupération des réunions RCP
   const { 
     data: meetings = [], 
@@ -166,21 +113,21 @@ export default function RcpMeetings() {
     refetch: refetchMeetings
   } = useQuery({
     queryKey: ['/api/rcp-meetings'],
-    staleTime: 30000,
-  }) as { data: any[], isLoading: boolean, error: any, refetch: () => void };
+    staleTime: 30000, 
+  });
 
   // Récupération des associés
-  const { 
+  const {
     data: associates = [],
     isLoading: isLoadingAssociates
   } = useQuery({
     queryKey: ['/api/associates'],
     staleTime: 60000,
-  }) as { data: any[], isLoading: boolean };
-
+  });
+  
   // Récupération des présences pour la réunion sélectionnée
-  const { 
-    data: attendances = [], 
+  const {
+    data: attendances = [],
     isLoading: isLoadingAttendances,
     error: attendancesError,
     refetch: refetchAttendances
@@ -188,63 +135,32 @@ export default function RcpMeetings() {
     queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'],
     enabled: !!selectedMeetingId,
     staleTime: 0,
-    onSuccess: (data) => {
-      if (selectedMeetingId && isMounted.current) {
-        // Stocker les données dans l'état persistant
-        setStoredAttendances(prev => ({
-          ...prev,
-          [selectedMeetingId.toString()]: data
-        }));
-      }
-    }
-  }) as { 
-    data: any[], 
-    isLoading: boolean,
-    error: any,
-    refetch: () => Promise<any>
-  };
+  });
 
   // Récupération des données pour une réunion spécifique
-  const selectedMeeting = React.useMemo(() => {
-    if (!selectedMeetingId || !meetings || !Array.isArray(meetings)) return null;
-    return meetings.find((meeting: any) => meeting.id === selectedMeetingId);
-  }, [selectedMeetingId, meetings]);
+  const selectedMeeting = selectedMeetingId && meetings 
+    ? meetings.find((meeting: any) => meeting.id === selectedMeetingId) 
+    : null;
   
-  // Mise à jour des associateAttendance basée sur les données serveur et stockées localement
+  // Mettre à jour l'état local des associés avec leur présence
   useEffect(() => {
-    if (!selectedMeetingId || !associates || associates.length === 0) {
-      setAssociateAttendance([]);
-      return;
-    }
-    
-    // Essayer d'abord d'utiliser les données du serveur
-    let attendanceData = [...attendances];
-    
-    // Si les données serveur ne sont pas disponibles ou en cours de chargement,
-    // essayer d'utiliser les données stockées localement
-    if ((isLoadingAttendances || attendancesError || attendanceData.length === 0) && 
-        storedAttendances[selectedMeetingId]) {
-      attendanceData = storedAttendances[selectedMeetingId];
-      console.log("Utilisation des données de présence stockées localement:", attendanceData);
-    }
-    
-    // Créer la nouvelle liste d'associés avec leur état de présence
-    const newAssociateAttendance = associates.map((associate: any) => {
-      const attendance = attendanceData.find((a: any) => a.associateId === associate.id);
+    if (associates && associates.length > 0 && attendances) {
+      // Map des associés avec leur état de présence
+      const associatesData = associates.map((associate: any) => {
+        const attendance = attendances.find((a: any) => a.associateId === associate.id);
+        return {
+          id: associate.id,
+          name: associate.name,
+          profession: associate.profession,
+          isManager: associate.isManager,
+          attendanceId: attendance ? attendance.id : null,
+          isPresent: attendance ? attendance.attended : false
+        };
+      });
       
-      return {
-        id: associate.id,
-        name: associate.name,
-        profession: associate.profession,
-        isManager: associate.isManager,
-        attendanceId: attendance ? attendance.id : null,
-        isPresent: attendance ? attendance.attended : false
-      };
-    });
-    
-    setAssociateAttendance(newAssociateAttendance);
-    
-  }, [associates, attendances, selectedMeetingId, isLoadingAttendances, attendancesError, storedAttendances]);
+      setAssociatesWithAttendance(associatesData);
+    }
+  }, [associates, attendances]);
   
   // Initialiser le formulaire d'édition quand une réunion est sélectionnée
   const editForm = useForm<FormValues>({
@@ -267,11 +183,6 @@ export default function RcpMeetings() {
       });
     }
   }, [selectedMeeting, editForm]);
-
-  // Fonction pour gérer le changement de réunion sélectionnée
-  const handleSelectMeeting = useCallback((meetingId: number) => {
-    setSelectedMeetingId(meetingId);
-  }, []);
 
   // Mutation pour créer une nouvelle réunion
   const createMutation = useMutation({
@@ -321,48 +232,30 @@ export default function RcpMeetings() {
       return apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended });
     },
     onSuccess: (data) => {
-      console.log("Présence mise à jour avec succès:", data);
+      // Mettre à jour l'état local
+      setAssociatesWithAttendance(prev => 
+        prev.map(a => 
+          a.id === data.associateId 
+            ? { ...a, attendanceId: data.id, isPresent: data.attended }
+            : a
+        )
+      );
       
-      if (selectedMeetingId) {
-        // Mettre à jour l'état local des présences
-        setAssociateAttendance(prev => 
-          prev.map(a => 
-            a.id === data.associateId 
-              ? { ...a, attendanceId: data.id, isPresent: data.attended }
-              : a
-          )
-        );
-        
-        // Mettre à jour le stockage persistant
-        setStoredAttendances(prev => {
-          const attendances = prev[selectedMeetingId] || [];
-          const index = attendances.findIndex(a => a.id === data.id);
-          
-          if (index >= 0) {
-            const newAttendances = [...attendances];
-            newAttendances[index] = data;
-            return { ...prev, [selectedMeetingId]: newAttendances };
-          } else {
-            return { ...prev, [selectedMeetingId]: [...attendances, data] };
-          }
-        });
-      }
-      
-      // Invalider les requêtes pour mettre à jour l'interface
-      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      // Invalider les requêtes
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
+      setIsProcessingAttendance(false);
     },
-    onError: (error) => {
-      console.error("Erreur lors de la mise à jour de la présence:", error);
-      
-      // En cas d'erreur, recharger les présences pour retrouver l'état correct
-      refreshAttendances();
-      
+    onError: () => {
       toast({
         title: 'Erreur',
         description: 'Impossible de mettre à jour la présence.',
         variant: 'destructive',
       });
+      
+      setIsProcessingAttendance(false);
+      refetchAttendances();
     },
   });
 
@@ -372,40 +265,30 @@ export default function RcpMeetings() {
       return apiRequest('/api/rcp-attendances', 'POST', { rcpId, associateId, attended });
     },
     onSuccess: (data) => {
-      console.log("Nouvelle présence créée avec succès:", data);
+      // Mettre à jour l'état local
+      setAssociatesWithAttendance(prev => 
+        prev.map(a => 
+          a.id === data.associateId 
+            ? { ...a, attendanceId: data.id, isPresent: data.attended }
+            : a
+        )
+      );
       
-      if (selectedMeetingId) {
-        // Mettre à jour l'état local des présences
-        setAssociateAttendance(prev => 
-          prev.map(a => 
-            a.id === data.associateId 
-              ? { ...a, attendanceId: data.id, isPresent: data.attended }
-              : a
-          )
-        );
-        
-        // Mettre à jour le stockage persistant
-        setStoredAttendances(prev => {
-          const attendances = prev[selectedMeetingId] || [];
-          return { ...prev, [selectedMeetingId]: [...attendances, data] };
-        });
-      }
-      
-      // Invalider les requêtes pour mettre à jour l'interface
-      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      // Invalider les requêtes
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
+      setIsProcessingAttendance(false);
     },
-    onError: (error) => {
-      console.error("Erreur lors de la création de la présence:", error);
-      
-      // En cas d'erreur, recharger les présences pour retrouver l'état correct
-      refreshAttendances();
-      
+    onError: () => {
       toast({
         title: 'Erreur',
         description: 'Impossible d\'ajouter la présence.',
         variant: 'destructive',
       });
+      
+      setIsProcessingAttendance(false);
+      refetchAttendances();
     },
   });
   
@@ -439,15 +322,8 @@ export default function RcpMeetings() {
     mutationFn: (id: number) => {
       return apiRequest(`/api/rcp-meetings/${id}`, 'DELETE');
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       setIsDeleteDialogOpen(false);
-      
-      // Supprimer les données locales pour cette réunion
-      setStoredAttendances(prev => {
-        const newState = { ...prev };
-        delete newState[variables.toString()];
-        return newState;
-      });
       
       // Invalider les requêtes pour mettre à jour l'interface
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
@@ -469,24 +345,28 @@ export default function RcpMeetings() {
     },
   });
 
-  // Gestion des présences/absences avec un état local
-  const handleAttendanceChange = useCallback((associateId: number, isPresent: boolean) => {
-    if (!selectedMeetingId) return;
+  // Gestion des présences/absences
+  const handleAttendanceChange = (associateId: number, isPresent: boolean) => {
+    if (!selectedMeetingId || isProcessingAttendance) return;
     
-    console.log(`Changement de présence pour associé ${associateId}: ${isPresent ? 'présent' : 'absent'}`);
+    // Éviter les requêtes multiples
+    setIsProcessingAttendance(true);
     
-    // Trouver l'associé dans l'état local
-    const associate = associateAttendance.find(a => a.id === associateId);
-    if (!associate) return;
-    
-    // Mise à jour optimiste immédiate de l'état local
-    setAssociateAttendance(prev => 
+    // Mise à jour optimiste de l'interface
+    setAssociatesWithAttendance(prev => 
       prev.map(a => 
         a.id === associateId 
           ? { ...a, isPresent }
           : a
       )
     );
+    
+    // Trouver l'associé
+    const associate = associatesWithAttendance.find(a => a.id === associateId);
+    if (!associate) {
+      setIsProcessingAttendance(false);
+      return;
+    }
     
     if (associate.attendanceId) {
       // Mise à jour d'une présence existante
@@ -502,26 +382,13 @@ export default function RcpMeetings() {
         attended: isPresent 
       });
     }
-  }, [selectedMeetingId, associateAttendance, updateAttendanceMutation, createAttendanceMutation]);
-  
-  // Fonction pour rafraîchir les présences
-  const refreshAttendances = async () => {
-    if (!selectedMeetingId) return;
-    
-    setIsRefreshing(true);
-    try {
-      await refetchAttendances();
-    } finally {
-      setIsRefreshing(false);
-    }
   };
-
+  
   // Fonction pour formater la date
   const formatDate = (dateString: string) => {
     try {
       if (!dateString) return 'Date non définie';
       
-      // Vérifier si la date est au format ISO ou un autre format valide
       const date = dateString.includes('T') 
         ? parseISO(dateString) 
         : new Date(dateString);
@@ -534,7 +401,7 @@ export default function RcpMeetings() {
   
   // Compter le nombre d'associés présents
   const getPresentCount = () => {
-    return associateAttendance.filter(a => a.isPresent).length;
+    return associatesWithAttendance.filter(a => a.isPresent).length;
   };
 
   return (
@@ -679,7 +546,7 @@ export default function RcpMeetings() {
                           ? 'bg-blue-50 border-blue-200'
                           : 'hover:bg-gray-50'
                       }`}
-                      onClick={() => handleSelectMeeting(meeting.id)}
+                      onClick={() => setSelectedMeetingId(meeting.id)}
                     >
                       <div className="flex justify-between items-start mb-1">
                         <h3 className="font-medium">{meeting.title}</h3>
@@ -861,7 +728,7 @@ export default function RcpMeetings() {
                             <Users className="h-4 w-4 mr-1" />
                             {getPresentCount()} présent(s)
                           </span>
-                          {associates.length > 0 && (
+                          {Array.isArray(associates) && associates.length > 0 && (
                             <Badge variant="outline" className="ml-auto">
                               {Math.round((getPresentCount() / associates.length) * 100)}% de participation
                             </Badge>
@@ -877,8 +744,7 @@ export default function RcpMeetings() {
                     <AlertTitle>Gestion des présences</AlertTitle>
                     <AlertDescription>
                       Cochez les cases pour marquer les associés présents à cette réunion.
-                      Ces présences sont enregistrées automatiquement et seront prises en compte 
-                      dans le calcul de la répartition des revenus.
+                      Ces présences seront prises en compte dans le calcul de la répartition des revenus.
                     </AlertDescription>
                   </Alert>
                   
@@ -897,17 +763,17 @@ export default function RcpMeetings() {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={refreshAttendances}
-                        disabled={isRefreshing}
+                        onClick={() => refetchAttendances()}
+                        disabled={isLoadingAttendances}
                       >
-                        <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingAttendances ? 'animate-spin' : ''}`} />
                         Rafraîchir
                       </Button>
                     </div>
                   </div>
                   <Separator className="mb-4" />
                   
-                  {isLoadingAssociates || (isLoadingAttendances && associateAttendance.length === 0) ? (
+                  {isLoadingAssociates || isLoadingAttendances ? (
                     // Affichage pendant le chargement
                     <div className="py-8 space-y-4">
                       <div className="animate-pulse flex justify-center">
@@ -917,7 +783,7 @@ export default function RcpMeetings() {
                         Chargement des données de présence...
                       </p>
                     </div>
-                  ) : attendancesError && associateAttendance.length === 0 ? (
+                  ) : attendancesError ? (
                     // Affichage en cas d'erreur
                     <div className="py-8 space-y-4">
                       <div className="text-center">
@@ -929,20 +795,20 @@ export default function RcpMeetings() {
                         <Button 
                           variant="outline" 
                           className="mt-4"
-                          onClick={refreshAttendances}
+                          onClick={() => refetchAttendances()}
                         >
                           <RefreshCw className="h-4 w-4 mr-2" />
                           Réessayer
                         </Button>
                       </div>
                     </div>
-                  ) : associateAttendance.length === 0 ? (
+                  ) : !Array.isArray(associates) || associates.length === 0 ? (
                     <div className="text-center p-8 bg-gray-50 rounded border">
                       <p>Aucun associé trouvé. Veuillez ajouter des associés dans la section "Associés".</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {associateAttendance.map((associate) => (
+                      {associatesWithAttendance.map((associate) => (
                         <div 
                           key={associate.id} 
                           className={`flex p-4 rounded-lg border transition-colors ${
@@ -966,7 +832,7 @@ export default function RcpMeetings() {
                                 onCheckedChange={(checked) => {
                                   handleAttendanceChange(associate.id, checked === true);
                                 }}
-                                disabled={updateAttendanceMutation.isPending || createAttendanceMutation.isPending}
+                                disabled={isProcessingAttendance}
                               />
                               <Label htmlFor={`attendance-${associate.id}`} className="cursor-pointer whitespace-nowrap">
                                 {associate.isPresent ? 'Présent' : 'Absent'}

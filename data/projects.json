@@ -1,10 +1,11 @@
 [
   {
     "id": 1,
-    "weight": "2"
-  },
-  {
-    "id": 2,
-    "weight": "3"
+    "title": "PROjet",
+    "description": null,
+    "startDate": "2025-04-26",
+    "endDate": null,
+    "status": "active",
+    "weight": 1
   }
 ]

@@ -1,8 +1,8 @@
 [
   {
     "id": 1,
-    "title": "RCP 1",
-    "description": "mensuell",
+    "title": "RCP mensuelle",
+    "description": null,
     "date": "2025-04-26",
     "duration": 60
   }
