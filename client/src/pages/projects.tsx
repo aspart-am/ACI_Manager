@@ -584,7 +584,7 @@ export default function Projects() {
                             onClick={() => setIsDeleteDialogOpen(true)}
                             title="Supprimer le projet"
                           >
-                            <Trash className="h-3 w-3" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
@@ -802,6 +802,30 @@ export default function Projects() {
               disabled={updateProjectWeightMutation.isPending}
             >
               {updateProjectWeightMutation.isPending ? 'Modification...' : 'Modifier le poids'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialogue de confirmation pour la suppression */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible et supprimera également toutes les affectations associées.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex space-x-2 pt-4">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteProject}
+              disabled={deleteProjectMutation.isPending}
+            >
+              {deleteProjectMutation.isPending ? 'Suppression...' : 'Supprimer définitivement'}
             </Button>
           </DialogFooter>
         </DialogContent>
