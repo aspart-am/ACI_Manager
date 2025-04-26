@@ -252,16 +252,19 @@ export default function RcpMeetings() {
       return apiRequest(`/api/rcp-attendances/${id}`, 'PATCH', { attended });
     },
     onSuccess: () => {
-      // Invalider les requêtes de réunions et de présences
-      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
+      // Force un rafraîchissement complet des données critiques
+      queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] }); 
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] }); // Très important pour la répartition
-      toast({
-        title: 'Présence mise à jour',
-        description: 'La présence a été mise à jour avec succès.',
-      });
-      // Important: refetch les données après le succès
-      setTimeout(() => refetchAttendances(), 500);
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
+      // Refetch immédiat des présences pour mettre à jour l'interface
+      refetchAttendances();
+      
+      // Forcer un recalcul de la distribution après un délai pour s'assurer que les changements soient pris en compte
+      setTimeout(() => {
+        // Refetch explicite de la distribution
+        queryClient.fetchQuery({ queryKey: ['/api/distribution/calculation'] });
+      }, 500);
     },
     onError: (error: any) => {
       console.error('Erreur détaillée lors de la mise à jour de la présence:', error);
@@ -284,16 +287,19 @@ export default function RcpMeetings() {
       });
     },
     onSuccess: () => {
-      // Invalider les requêtes de réunions et de présences
+      // Force un rafraîchissement complet des données critiques
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings', selectedMeetingId, 'attendances'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] }); // Très important pour la répartition
-      toast({
-        title: 'Présence ajoutée',
-        description: 'La présence a été ajoutée avec succès.',
-      });
-      // Important: refetch les données après le succès
-      setTimeout(() => refetchAttendances(), 500);
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
+      // Refetch immédiat des présences pour mettre à jour l'interface
+      refetchAttendances();
+      
+      // Forcer un recalcul de la distribution après un délai pour s'assurer que les changements soient pris en compte
+      setTimeout(() => {
+        // Refetch explicite de la distribution
+        queryClient.fetchQuery({ queryKey: ['/api/distribution/calculation'] });
+      }, 500);
     },
     onError: (error: any) => {
       console.error('Erreur détaillée lors de l\'ajout de la présence:', error);
