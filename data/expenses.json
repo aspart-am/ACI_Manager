@@ -18,15 +18,6 @@
     "frequency": null
   },
   {
-    "id": 3,
-    "category": "Électricité",
-    "description": "ZAU",
-    "amount": "1000",
-    "date": "2025-04-25T13:44:53.882Z",
-    "isRecurring": false,
-    "frequency": "monthly"
-  },
-  {
     "id": 4,
     "category": "Loyer",
     "description": "SISA",

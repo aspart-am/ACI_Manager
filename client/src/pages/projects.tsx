@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Briefcase, Pencil, Trash2, Calculator } from 'lucide-react';
+import { Briefcase, Pencil, Trash2, Calculator, Edit, Scale } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,12 +52,16 @@ export default function Projects() {
   // État pour les dialogues
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [isAssignmentDialogOpen, setIsAssignmentDialogOpen] = useState(false);
+  const [isWeightEditDialogOpen, setIsWeightEditDialogOpen] = useState(false);
 
   // État pour les sélections
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [autoDistribute, setAutoDistribute] = useState(true);
+  
+  // État pour l'édition du poids
+  const [weightEditValue, setWeightEditValue] = useState("");
 
   // Formulaires
   const projectForm = useForm<z.infer<typeof projectFormSchema>>({
@@ -159,6 +163,29 @@ export default function Projects() {
       console.error('Erreur lors de la création de l\'affectation:', error);
     },
   });
+  
+  const updateProjectWeightMutation = useMutation({
+    mutationFn: (data: { id: number, weight: string }) => 
+      apiRequest(`/api/projects/${data.id}`, 'PATCH', { weight: data.weight }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      toast({
+        title: 'Poids modifié',
+        description: 'Le poids du projet a été modifié avec succès.',
+      });
+      setIsWeightEditDialogOpen(false);
+      refetchProjects();
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de modifier le poids du projet.',
+        variant: 'destructive',
+      });
+      console.error('Erreur lors de la modification du poids du projet:', error);
+    },
+  });
 
   // Fonctions pour gérer les soumissions de formulaire
   function onSubmitProject(values: z.infer<typeof projectFormSchema>) {
@@ -248,6 +275,33 @@ export default function Projects() {
       });
       console.error('Erreur lors de la redistribution des contributions:', error);
     }
+  };
+  
+  // Fonction pour ouvrir le dialogue d'édition du poids
+  const openWeightEditDialog = (project: any) => {
+    if (!project) return;
+    setWeightEditValue(project.weight.toString());
+    setIsWeightEditDialogOpen(true);
+  };
+  
+  // Fonction pour soumettre la modification du poids
+  const handleWeightUpdate = () => {
+    if (!selectedProjectId || !weightEditValue) return;
+    
+    const weight = parseFloat(weightEditValue);
+    if (isNaN(weight) || weight <= 0) {
+      toast({
+        title: 'Erreur',
+        description: 'Le poids doit être un nombre positif.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    updateProjectWeightMutation.mutate({
+      id: selectedProjectId,
+      weight: weightEditValue
+    });
   };
 
   return (
@@ -455,7 +509,18 @@ export default function Projects() {
                     <div className="flex flex-col space-y-1">
                       <span>Période: {formatDate(selectedProject.start_date)} {selectedProject.end_date ? `- ${formatDate(selectedProject.end_date)}` : '(en cours)'}</span>
                       <span>Statut: {selectedProject.status === 'active' ? 'Actif' : selectedProject.status === 'completed' ? 'Terminé' : 'En attente'}</span>
-                      <span>Poids: {selectedProject.weight}</span>
+                      <div className="flex items-center space-x-2">
+                        <span>Poids: {selectedProject.weight}</span>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-6 w-6 p-0" 
+                          onClick={() => openWeightEditDialog(selectedProject)}
+                          title="Modifier le poids du projet"
+                        >
+                          <Scale className="h-3 w-3" />
+                        </Button>
+                      </div>
                       {selectedProject.description && (
                         <p className="mt-2">{selectedProject.description}</p>
                       )}
@@ -632,6 +697,48 @@ export default function Projects() {
           </Card>
         </div>
       </div>
+      
+      {/* Dialogue pour l'édition du poids du projet */}
+      <Dialog open={isWeightEditDialogOpen} onOpenChange={setIsWeightEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le poids du projet</DialogTitle>
+            <DialogDescription>
+              Le poids du projet influence directement les calculs de distribution des revenus.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex flex-col space-y-2">
+              <Label htmlFor="weight">Poids du projet</Label>
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="weight"
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={weightEditValue}
+                  onChange={(e) => setWeightEditValue(e.target.value)}
+                  placeholder="Entrez le poids du projet"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Plus le poids est élevé, plus ce projet aura d'impact dans le calcul de la distribution des revenus.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsWeightEditDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleWeightUpdate}
+              disabled={updateProjectWeightMutation.isPending}
+            >
+              {updateProjectWeightMutation.isPending ? 'Modification...' : 'Modifier le poids'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

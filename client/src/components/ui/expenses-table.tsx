@@ -68,7 +68,15 @@ export default function ExpensesTable({
     if (!selectedExpense) return;
     
     try {
-      await apiRequest("DELETE", `/api/expenses/${selectedExpense.id}`, undefined);
+      // Utilisons directement fetch pour avoir plus de contrôle sur la requête
+      const response = await fetch(`/api/expenses/${selectedExpense.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      }
       
       toast({
         title: "Charge supprimée",
@@ -78,6 +86,7 @@ export default function ExpensesTable({
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/distribution/calculation"] });
     } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
       toast({
         title: "Erreur",
         description: "Une erreur est survenue lors de la suppression de la charge.",
