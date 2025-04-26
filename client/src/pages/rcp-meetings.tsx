@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -72,7 +72,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Type pour les associés avec leur état de présence
+// Type pour une entrée de présence
 type AttendanceRecord = {
   id?: number;
   rcpId: number;
@@ -90,29 +90,35 @@ type AssociateWithAttendance = {
   isPresent: boolean;
 };
 
+// Clé de localStorage pour les données persistantes
+const ATTENDANCE_STORAGE_KEY = 'rcp-attendance-data';
+
 // Fonction pour sauvegarder les données dans localStorage
-const saveToLocalStorage = (key: string, data: any) => {
+const saveToLocalStorage = (data: Record<string, AttendanceRecord[]>) => {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(data));
   } catch (e) {
     console.error("Erreur lors de la sauvegarde dans localStorage:", e);
   }
 };
 
 // Fonction pour récupérer les données de localStorage
-const getFromLocalStorage = (key: string): any | null => {
+const getFromLocalStorage = (): Record<string, AttendanceRecord[]> => {
   try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : null;
+    const data = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
+    return data ? JSON.parse(data) : {};
   } catch (e) {
     console.error("Erreur lors de la récupération depuis localStorage:", e);
-    return null;
+    return {};
   }
 };
 
 export default function RcpMeetings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Référence pour suivre si le composant est monté
+  const isMounted = useRef(true);
   
   // État local pour les dialogues
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -124,8 +130,22 @@ export default function RcpMeetings() {
   const [associateAttendance, setAssociateAttendance] = useState<AssociateWithAttendance[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // État local pour assurer la cohérence des présences
-  const [attendanceMap, setAttendanceMap] = useState<Record<string, boolean>>({});
+  // État pour le stockage persistant des présences
+  const [storedAttendances, setStoredAttendances] = useState<Record<string, AttendanceRecord[]>>(
+    getFromLocalStorage()
+  );
+  
+  // Effet pour gérer le démontage du composant
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+  
+  // Effet pour synchroniser les modifications de storedAttendances avec localStorage
+  useEffect(() => {
+    saveToLocalStorage(storedAttendances);
+  }, [storedAttendances]);
   
   // Gestion du formulaire avec react-hook-form et zod
   const form = useForm<FormValues>({
@@ -169,11 +189,12 @@ export default function RcpMeetings() {
     enabled: !!selectedMeetingId,
     staleTime: 0,
     onSuccess: (data) => {
-      if (selectedMeetingId) {
-        console.log(`Présences récupérées pour la réunion ${selectedMeetingId}:`, data);
-        
-        // Sauvegarder dans localStorage comme sauvegarde
-        saveToLocalStorage(`rcp-attendances-${selectedMeetingId}`, data);
+      if (selectedMeetingId && isMounted.current) {
+        // Stocker les données dans l'état persistant
+        setStoredAttendances(prev => ({
+          ...prev,
+          [selectedMeetingId.toString()]: data
+        }));
       }
     }
   }) as { 
@@ -189,58 +210,41 @@ export default function RcpMeetings() {
     return meetings.find((meeting: any) => meeting.id === selectedMeetingId);
   }, [selectedMeetingId, meetings]);
   
-  // Initialiser l'état des présences quand la réunion ou les associés changent
+  // Mise à jour des associateAttendance basée sur les données serveur et stockées localement
   useEffect(() => {
-    if (!selectedMeetingId) {
+    if (!selectedMeetingId || !associates || associates.length === 0) {
       setAssociateAttendance([]);
       return;
     }
     
-    if (associates.length > 0) {
-      let attendanceData = [...attendances];
-      
-      // Si les données d'API sont en cours de chargement ou en erreur,
-      // essayer de récupérer depuis le localStorage
-      if ((isLoadingAttendances || attendancesError || !attendanceData.length) && selectedMeetingId) {
-        const cachedData = getFromLocalStorage(`rcp-attendances-${selectedMeetingId}`);
-        if (cachedData && Array.isArray(cachedData)) {
-          attendanceData = cachedData;
-          console.log("Utilisation des données de présence en cache:", cachedData);
-        }
-      }
-      
-      // Construire un état plus facile à manipuler
-      const newAttendanceState = associates.map((associate: any) => {
-        const attendance = Array.isArray(attendanceData) 
-          ? attendanceData.find((a: any) => a.associateId === associate.id) 
-          : null;
-        
-        // Vérifier aussi dans l'attendanceMap pour la cohérence
-        const mapKey = `${selectedMeetingId}-${associate.id}`;
-        const isPresent = attendance 
-          ? attendance.attended 
-          : attendanceMap[mapKey] || false;
-        
-        return {
-          id: associate.id,
-          name: associate.name,
-          profession: associate.profession,
-          isManager: associate.isManager,
-          attendanceId: attendance ? attendance.id : null,
-          isPresent: isPresent
-        };
-      });
-      
-      setAssociateAttendance(newAttendanceState);
-      
-      // Mettre à jour aussi l'attendanceMap pour la cohérence
-      const newMap = { ...attendanceMap };
-      newAttendanceState.forEach(a => {
-        newMap[`${selectedMeetingId}-${a.id}`] = a.isPresent;
-      });
-      setAttendanceMap(newMap);
+    // Essayer d'abord d'utiliser les données du serveur
+    let attendanceData = [...attendances];
+    
+    // Si les données serveur ne sont pas disponibles ou en cours de chargement,
+    // essayer d'utiliser les données stockées localement
+    if ((isLoadingAttendances || attendancesError || attendanceData.length === 0) && 
+        storedAttendances[selectedMeetingId]) {
+      attendanceData = storedAttendances[selectedMeetingId];
+      console.log("Utilisation des données de présence stockées localement:", attendanceData);
     }
-  }, [associates, attendances, selectedMeetingId, isLoadingAttendances, attendancesError, attendanceMap]);
+    
+    // Créer la nouvelle liste d'associés avec leur état de présence
+    const newAssociateAttendance = associates.map((associate: any) => {
+      const attendance = attendanceData.find((a: any) => a.associateId === associate.id);
+      
+      return {
+        id: associate.id,
+        name: associate.name,
+        profession: associate.profession,
+        isManager: associate.isManager,
+        attendanceId: attendance ? attendance.id : null,
+        isPresent: attendance ? attendance.attended : false
+      };
+    });
+    
+    setAssociateAttendance(newAssociateAttendance);
+    
+  }, [associates, attendances, selectedMeetingId, isLoadingAttendances, attendancesError, storedAttendances]);
   
   // Initialiser le formulaire d'édition quand une réunion est sélectionnée
   const editForm = useForm<FormValues>({
@@ -265,9 +269,9 @@ export default function RcpMeetings() {
   }, [selectedMeeting, editForm]);
 
   // Fonction pour gérer le changement de réunion sélectionnée
-  const handleSelectMeeting = (meetingId: number) => {
+  const handleSelectMeeting = useCallback((meetingId: number) => {
     setSelectedMeetingId(meetingId);
-  };
+  }, []);
 
   // Mutation pour créer une nouvelle réunion
   const createMutation = useMutation({
@@ -319,29 +323,29 @@ export default function RcpMeetings() {
     onSuccess: (data) => {
       console.log("Présence mise à jour avec succès:", data);
       
-      // Mettre à jour l'état local
-      setAssociateAttendance(prev => 
-        prev.map(a => 
-          a.id === data.associateId 
-            ? { ...a, attendanceId: data.id, isPresent: data.attended }
-            : a
-        )
-      );
-      
-      // Mettre à jour aussi l'attendanceMap pour la cohérence
       if (selectedMeetingId) {
-        setAttendanceMap(prev => ({
-          ...prev,
-          [`${selectedMeetingId}-${data.associateId}`]: data.attended
-        }));
-      }
-      
-      // Sauvegarder la version mise à jour dans localStorage
-      if (selectedMeetingId) {
-        const updatedAttendances = attendances.map((a: any) => 
-          a.id === data.id ? data : a
+        // Mettre à jour l'état local des présences
+        setAssociateAttendance(prev => 
+          prev.map(a => 
+            a.id === data.associateId 
+              ? { ...a, attendanceId: data.id, isPresent: data.attended }
+              : a
+          )
         );
-        saveToLocalStorage(`rcp-attendances-${selectedMeetingId}`, updatedAttendances);
+        
+        // Mettre à jour le stockage persistant
+        setStoredAttendances(prev => {
+          const attendances = prev[selectedMeetingId] || [];
+          const index = attendances.findIndex(a => a.id === data.id);
+          
+          if (index >= 0) {
+            const newAttendances = [...attendances];
+            newAttendances[index] = data;
+            return { ...prev, [selectedMeetingId]: newAttendances };
+          } else {
+            return { ...prev, [selectedMeetingId]: [...attendances, data] };
+          }
+        });
       }
       
       // Invalider les requêtes pour mettre à jour l'interface
@@ -370,27 +374,21 @@ export default function RcpMeetings() {
     onSuccess: (data) => {
       console.log("Nouvelle présence créée avec succès:", data);
       
-      // Mettre à jour l'état local
-      setAssociateAttendance(prev => 
-        prev.map(a => 
-          a.id === data.associateId 
-            ? { ...a, attendanceId: data.id, isPresent: data.attended }
-            : a
-        )
-      );
-      
-      // Mettre à jour aussi l'attendanceMap pour la cohérence
       if (selectedMeetingId) {
-        setAttendanceMap(prev => ({
-          ...prev,
-          [`${selectedMeetingId}-${data.associateId}`]: data.attended
-        }));
-      }
-      
-      // Sauvegarder la version mise à jour dans localStorage
-      if (selectedMeetingId) {
-        const updatedAttendances = [...attendances, data];
-        saveToLocalStorage(`rcp-attendances-${selectedMeetingId}`, updatedAttendances);
+        // Mettre à jour l'état local des présences
+        setAssociateAttendance(prev => 
+          prev.map(a => 
+            a.id === data.associateId 
+              ? { ...a, attendanceId: data.id, isPresent: data.attended }
+              : a
+          )
+        );
+        
+        // Mettre à jour le stockage persistant
+        setStoredAttendances(prev => {
+          const attendances = prev[selectedMeetingId] || [];
+          return { ...prev, [selectedMeetingId]: [...attendances, data] };
+        });
       }
       
       // Invalider les requêtes pour mettre à jour l'interface
@@ -441,8 +439,15 @@ export default function RcpMeetings() {
     mutationFn: (id: number) => {
       return apiRequest(`/api/rcp-meetings/${id}`, 'DELETE');
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       setIsDeleteDialogOpen(false);
+      
+      // Supprimer les données locales pour cette réunion
+      setStoredAttendances(prev => {
+        const newState = { ...prev };
+        delete newState[variables.toString()];
+        return newState;
+      });
       
       // Invalider les requêtes pour mettre à jour l'interface
       queryClient.invalidateQueries({ queryKey: ['/api/rcp-meetings'] });
@@ -482,12 +487,6 @@ export default function RcpMeetings() {
           : a
       )
     );
-    
-    // Mettre à jour aussi l'attendanceMap pour la cohérence
-    setAttendanceMap(prev => ({
-      ...prev,
-      [`${selectedMeetingId}-${associateId}`]: isPresent
-    }));
     
     if (associate.attendanceId) {
       // Mise à jour d'une présence existante
@@ -878,7 +877,8 @@ export default function RcpMeetings() {
                     <AlertTitle>Gestion des présences</AlertTitle>
                     <AlertDescription>
                       Cochez les cases pour marquer les associés présents à cette réunion.
-                      Ces présences seront prises en compte dans le calcul de la répartition des revenus.
+                      Ces présences sont enregistrées automatiquement et seront prises en compte 
+                      dans le calcul de la répartition des revenus.
                     </AlertDescription>
                   </Alert>
                   

@@ -1,16 +1,9 @@
 [
   {
     "id": 1,
-    "title": "RCP",
-    "description": " mensuellle",
+    "title": "RCP 1",
+    "description": "mensuell",
     "date": "2025-04-26",
     "duration": 60
-  },
-  {
-    "id": 2,
-    "title": "AG0",
-    "description": null,
-    "date": "2025-04-24",
-    "duration": 240
   }
 ]
