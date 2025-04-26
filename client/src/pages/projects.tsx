@@ -294,6 +294,45 @@ export default function Projects() {
     }
   };
   
+  // Mutation pour supprimer un projet
+  const deleteProjectMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/projects/${id}`, 'DELETE'),
+    onSuccess: () => {
+      // Invalider les requêtes liées aux projets et à la distribution
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/distribution/calculation'] });
+      
+      toast({
+        title: 'Projet supprimé',
+        description: 'Le projet a été supprimé avec succès.',
+      });
+      
+      // Réinitialiser la sélection
+      setSelectedProjectId(null);
+      
+      // Forcer un recalcul de la distribution
+      setTimeout(() => {
+        queryClient.fetchQuery({ queryKey: ['/api/distribution/calculation'] });
+      }, 300);
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de supprimer le projet.',
+        variant: 'destructive',
+      });
+      console.error('Erreur lors de la suppression du projet:', error);
+    },
+  });
+
+  // Fonction pour confirmer la suppression d'un projet
+  const handleDeleteProject = () => {
+    if (!selectedProjectId) return;
+    
+    deleteProjectMutation.mutate(selectedProjectId);
+    setIsDeleteDialogOpen(false);
+  };
+  
   // Fonction pour ouvrir le dialogue d'édition du poids
   const openWeightEditDialog = (project: any) => {
     if (!project) return;
@@ -528,15 +567,26 @@ export default function Projects() {
                       <span>Statut: {selectedProject.status === 'active' ? 'Actif' : selectedProject.status === 'completed' ? 'Terminé' : 'En attente'}</span>
                       <div className="flex items-center space-x-2">
                         <span>Poids: {selectedProject.weight}</span>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-6 w-6 p-0" 
-                          onClick={() => openWeightEditDialog(selectedProject)}
-                          title="Modifier le poids du projet"
-                        >
-                          <Scale className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center space-x-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-6 w-6 p-0" 
+                            onClick={() => openWeightEditDialog(selectedProject)}
+                            title="Modifier le poids du projet"
+                          >
+                            <Scale className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-6 w-6 p-0 text-red-500 hover:bg-red-50" 
+                            onClick={() => setIsDeleteDialogOpen(true)}
+                            title="Supprimer le projet"
+                          >
+                            <Trash className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                       {selectedProject.description && (
                         <p className="mt-2">{selectedProject.description}</p>

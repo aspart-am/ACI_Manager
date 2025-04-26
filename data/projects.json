@@ -1,12 +1,7 @@
 [
   {
     "id": 1,
-    "title": "Prévention Diabète",
-    "description": "Programme de prévention et de suivi des patients diabétiques",
-    "startDate": "2023-01-01",
-    "endDate": null,
-    "status": "active",
-    "weight": "1.5"
+    "weight": "1"
   },
   {
     "id": 2,
@@ -14,11 +9,15 @@
   },
   {
     "id": 3,
+    "weight": "2"
+  },
+  {
+    "id": 4,
     "title": "DTII",
     "description": null,
-    "startDate": "2025-04-28",
-    "endDate": "2025-04-26",
+    "startDate": "2025-04-26",
+    "endDate": null,
     "status": "active",
-    "weight": 2
+    "weight": 1.5
   }
 ]
